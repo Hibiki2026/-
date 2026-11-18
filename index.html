@@ -3,424 +3,363 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>問題ランダム機構</title>
 <style>
 *{box-sizing:border-box}
-:root{
- --bg:#f4f6ff;--card:#fff;--text:#25294a;--muted:#7c83a2;
- --primary:#6558e8;--primary2:#8878ff;--border:#e7e9f6;
- --pink:#ff72a5;--blue:#55b8ff;--green:#43c89b;
-}
-body{
- margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
- background:linear-gradient(135deg,#f4f5ff,#f9f1ff,#eefaff);
- color:var(--text);min-height:100vh;
-}
-header{
- padding:24px 16px 18px;text-align:center;
-}
-.logo{
- display:inline-flex;align-items:center;justify-content:center;
- width:58px;height:58px;border-radius:20px;
- background:linear-gradient(135deg,#7566f4,#a18cff);
- color:white;font-size:28px;box-shadow:0 8px 22px #8273ef44;
-}
-h1{font-size:26px;margin:10px 0 4px}
-.subtitle{color:var(--muted);font-size:14px}
-.container{max-width:950px;margin:auto;padding:0 15px 40px}
-.tabs{display:flex;gap:9px;margin:12px 0 18px}
-.tab{
- flex:1;border:none;padding:13px;border-radius:14px;
- background:#ffffffb8;color:#676d8e;font-weight:800;cursor:pointer;
-}
-.tab.active{background:var(--primary);color:white;box-shadow:0 5px 16px #6558e833}
-.panel{display:none}
-.panel.active{display:block}
-.card{
- background:var(--card);border:1px solid var(--border);
- border-radius:20px;padding:20px;margin-bottom:15px;
- box-shadow:0 6px 24px #353d7110;
-}
-.card-title{font-weight:900;font-size:17px;margin-bottom:15px}
-label{display:block;font-size:13px;font-weight:800;color:#626987;margin-bottom:7px}
-input,textarea{
- width:100%;padding:13px;border-radius:13px;border:1px solid var(--border);
- background:#fafbff;color:var(--text);font:inherit;outline:none;
-}
-input:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px #6558e814}
-textarea{resize:vertical;min-height:100px}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.field{margin-bottom:14px}
-.buttons{display:flex;gap:9px;flex-wrap:wrap}
-button{
- font:inherit;font-weight:800;cursor:pointer;border:none;
- transition:.15s transform,.15s opacity;
-}
+body{margin:0;background:linear-gradient(135deg,#f1f3ff,#fff2fa,#effaff);font-family:system-ui,sans-serif;color:#28294b}
+header{text-align:center;padding:24px 12px}
+.logo{display:inline-grid;place-items:center;width:58px;height:58px;border-radius:19px;background:linear-gradient(135deg,#7666f5,#b17aff);color:white;font-size:29px}
+h1{margin:10px 0 5px;font-size:25px}
+.sub{color:#888da8;font-size:13px}
+main{max-width:850px;margin:auto;padding:0 13px 40px}
+.card{background:white;border:1px solid #e8e9f5;border-radius:19px;padding:18px;margin-bottom:14px;box-shadow:0 5px 20px #34385c0b}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tab{flex:1;border:0;padding:12px;border-radius:13px;background:#fff;color:#727792;font-weight:800;cursor:pointer}
+.tab.active{background:#6658e9;color:white}
+.panel{display:none}.panel.active{display:block}
+button{cursor:pointer;border:0;border-radius:12px;padding:12px 15px;font-weight:800;font-family:inherit}
 button:active{transform:scale(.97)}
-.btn{padding:12px 16px;border-radius:13px}
-.primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:white}
-.secondary{background:#f0f1ff;color:#5f58c9}
-.pink{background:#fff0f6;color:#d84e88}
-.green{background:#e8fbf4;color:#15956e}
-.gray{background:#f2f4f8;color:#65708b}
-.danger{background:#fff0ee;color:#dc5e54}
+.primary{background:linear-gradient(135deg,#6858e9,#9383ff);color:white}
+.secondary{background:#efefff;color:#6158cb}
+.green{background:#e6fbf3;color:#16946c}
+.pink{background:#fff0f7;color:#d94d88}
+.gray{background:#f1f3f7;color:#67718a}
+.red{background:#fff0ed;color:#d75b52}
 .full{width:100%}
-.question-box{
- min-height:210px;display:flex;flex-direction:column;justify-content:center;
- align-items:center;text-align:center;padding:25px 15px;
- background:linear-gradient(135deg,#f1efff,#f0faff);
- border:1px solid #e8e5ff;border-radius:20px;
-}
-.question-label{font-size:12px;color:#8179cf;font-weight:900;letter-spacing:2px}
-.question-text{font-size:clamp(20px,4vw,30px);font-weight:900;white-space:pre-wrap;overflow-wrap:anywhere;margin:18px 0}
-.answer-box{
- background:#eafff6;border:1px solid #d1f7e7;border-radius:15px;
- padding:17px;margin-top:12px;text-align:center;display:none;
-}
-.answer-title{font-size:12px;color:#249b76;font-weight:900}
-.answer-text{font-size:20px;font-weight:900;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px}
-.quiz-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+label{font-size:13px;font-weight:800;display:block;margin-bottom:6px}
+input,textarea{width:100%;padding:12px;border:1px solid #e3e5f2;border-radius:12px;background:#fafbff;color:#29294a;font:inherit;outline:none}
+input:focus,textarea:focus{border-color:#8b7cff}
+textarea{resize:vertical;min-height:80px}
+.field{margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1}
 .stats{display:flex;gap:10px;margin-bottom:14px}
-.stat{flex:1;background:#fff;border:1px solid var(--border);border-radius:15px;padding:13px;text-align:center}
-.stat-num{font-size:22px;font-weight:900;color:var(--primary)}
-.stat-label{font-size:12px;color:var(--muted)}
-.list{display:flex;flex-direction:column;gap:9px}
-.item{
- border:1px solid var(--border);border-radius:14px;padding:13px;
- display:flex;align-items:center;gap:10px;background:#fff;
-}
-.item-content{min-width:0;flex:1}
-.item-q{font-weight:800;overflow-wrap:anywhere}
-.item-a{font-size:13px;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}
-.item-actions{display:flex;gap:5px}
-.small-btn{padding:8px 10px;border-radius:10px;font-size:12px}
-.empty{text-align:center;color:var(--muted);padding:35px 10px}
-#toast{
- position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
- background:#25294a;color:white;padding:12px 18px;border-radius:14px;
- font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:99;
- max-width:90%;text-align:center;
-}
-#toast.show{opacity:1}
-.code-area{font-family:monospace;font-size:12px;min-height:110px}
-hr{border:0;border-top:1px solid var(--border);margin:20px 0}
-@media(max-width:600px){
- h1{font-size:23px}
- .card{padding:15px}
- .form-grid{grid-template-columns:1fr;gap:0}
- .item{align-items:flex-start}
- .item-actions{flex-direction:column}
- .quiz-actions{grid-template-columns:1fr}
- .tabs{gap:6px}
- .tab{padding:11px 6px;font-size:13px}
-}
+.stat{flex:1;text-align:center;padding:13px;background:white;border:1px solid #e8e9f5;border-radius:15px}
+.num{font-size:24px;font-weight:900;color:#6858e9}
+.small{font-size:12px;color:#888da8}
+.question{min-height:205px;border-radius:18px;background:linear-gradient(135deg,#f2efff,#edfbff);display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:24px}
+.q-label{font-size:12px;letter-spacing:2px;color:#8c80db;font-weight:900}
+.q-text{font-size:clamp(21px,4vw,30px);font-weight:900;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:16px}
+.answer{display:none;margin-top:12px;padding:18px;text-align:center;border-radius:15px;background:#eafff5;border:1px solid #d5f6e8}
+.a-label{font-size:12px;color:#229c76;font-weight:900}
+.a-text{font-size:21px;font-weight:900;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px}
+.list{display:grid;gap:9px}
+.item{display:flex;gap:9px;align-items:center;border:1px solid #e8e9f5;padding:12px;border-radius:13px}
+.item-body{flex:1;min-width:0;overflow-wrap:anywhere}
+.item-q{font-weight:800}
+.item-a{font-size:13px;color:#858aa3;margin-top:4px}
+.item-buttons{display:flex;gap:5px}
+.item-buttons button{padding:8px 10px;font-size:12px}
+.empty{text-align:center;padding:24px;color:#9398ad}
+.set-item{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #e7e8f4;border-radius:12px;margin-bottom:8px}
+.set-name{font-weight:800;flex:1;overflow-wrap:anywhere}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#29294a;color:white;padding:12px 18px;border-radius:12px;opacity:0;transition:.2s;z-index:10;text-align:center}
+.toast.show{opacity:1}
+hr{border:0;border-top:1px solid #eee;margin:20px 0}
+@media(max-width:520px){.card{padding:14px}.item{align-items:flex-start}.item-buttons{flex-direction:column}.tabs{gap:4px}.tab{padding:10px 4px;font-size:12px}}
 </style>
 </head>
 <body>
 <header>
- <div class="logo">🎲</div>
- <h1>問題ランダム機構</h1>
- <div class="subtitle">問題を登録して、ランダムに挑戦しよう！</div>
+<div class="logo">🎲</div>
+<h1>問題ランダム機構</h1>
+<div class="sub">登録した問題をランダムに解こう！</div>
 </header>
+<main>
 
-<div class="container">
- <div class="stats">
-  <div class="stat"><div class="stat-num" id="totalCount">0</div><div class="stat-label">登録問題数</div></div>
-  <div class="stat"><div class="stat-num" id="playCount">0</div><div class="stat-label">出題回数</div></div>
- </div>
-
- <div class="tabs">
-  <button class="tab active" onclick="showTab('quiz',this)">🎲 出題</button>
-  <button class="tab" onclick="showTab('manage',this)">📝 問題管理</button>
-  <button class="tab" onclick="showTab('save',this)">💾 保存・引継ぎ</button>
- </div>
-
- <!-- 出題 -->
- <section class="panel active" id="quiz">
-  <div class="card">
-   <div class="question-box">
-    <div class="question-label">RANDOM QUESTION</div>
-    <div class="question-text" id="questionText">問題を登録するとここに表示されます</div>
-   </div>
-   <div class="answer-box" id="answerBox">
-    <div class="answer-title">ANSWER</div>
-    <div class="answer-text" id="answerText"></div>
-   </div>
-   <div class="quiz-actions">
-    <button class="btn green" onclick="showAnswer()">👀 答えを見る</button>
-    <button class="btn primary" onclick="nextQuestion()">🎲 次の問題</button>
-   </div>
-  </div>
-  <div class="card">
-   <div class="buttons">
-    <button class="btn secondary full" onclick="showAnswer()">答えを表示 / 非表示</button>
-   </div>
-   <p style="font-size:13px;color:var(--muted);text-align:center;margin:12px 0 0">
-    登録された問題からランダムに出題されます。直前と同じ問題はなるべく避けます。
-   </p>
-  </div>
- </section>
-
- <!-- 管理 -->
- <section class="panel" id="manage">
-  <div class="card">
-   <div class="card-title" id="formTitle">➕ 問題を追加</div>
-   <div class="field">
-    <label>問題文</label>
-    <textarea id="questionInput" placeholder="問題文を入力"></textarea>
-   </div>
-   <div class="field">
-    <label>答え</label>
-    <textarea id="answerInput" placeholder="答えを入力"></textarea>
-   </div>
-   <div class="buttons">
-    <button class="btn primary" onclick="saveQuestion()">追加する</button>
-    <button class="btn gray" onclick="clearForm()">入力をクリア</button>
-   </div>
-  </div>
-  <div class="card">
-   <div class="card-title">📚 登録問題一覧</div>
-   <div id="questionList" class="list"></div>
-  </div>
- </section>
-
- <!-- 保存 -->
- <section class="panel" id="save">
-  <div class="card">
-   <div class="card-title">📦 引き継ぎコード</div>
-   <p style="font-size:13px;color:var(--muted)">登録した問題をコードにして保存できます。他の端末に移したり、バックアップしたりできます。</p>
-   <button class="btn primary full" onclick="exportData()">引き継ぎコードを作る</button>
-   <div class="field" style="margin-top:12px">
-    <textarea id="exportCode" class="code-area" placeholder="作成したコードがここに表示されます"></textarea>
-   </div>
-   <button class="btn secondary full" onclick="copyCode()">📋 コードをコピー</button>
-   <hr>
-   <div class="card-title">📥 引き継ぎコードを読み込む</div>
-   <textarea id="importCode" class="code-area" placeholder="ここに引き継ぎコードを貼り付け"></textarea>
-   <div class="buttons" style="margin-top:10px">
-    <button class="btn green full" onclick="importData()">読み込む（追加）</button>
-    <button class="btn danger full" onclick="replaceData()">全部置き換える</button>
-   </div>
-  </div>
-  <div class="card">
-   <div class="card-title">⚠️ データについて</div>
-   <p style="font-size:13px;color:var(--muted)">
-    データはこのブラウザ内に保存されます。ブラウザのデータ消去や別端末では消える場合があるため、引き継ぎコードをバックアップしてください。
-   </p>
-   <button class="btn danger full" onclick="clearAll()">全問題を削除</button>
-  </div>
- </section>
+<div class="stats">
+<div class="stat"><div class="num" id="total">0</div><div class="small">登録問題数</div></div>
+<div class="stat"><div class="num" id="round">0</div><div class="small">周回数</div></div>
 </div>
 
-<div id="toast"></div>
+<div class="card">
+<label>現在の問題セット</label>
+<div id="currentSetName" style="font-weight:900;margin:5px 0 12px">未保存の問題セット</div>
+<div class="row">
+<button class="secondary" onclick="newSet()">＋ 新しいセット</button>
+<button class="green" onclick="saveSet()">💾 保存</button>
+</div>
+
+<div class="tabs">
+<button class="tab active" onclick="tab('quiz',this)">🎲 出題</button>
+<button class="tab" onclick="tab('manage',this)">📝 問題管理</button>
+<button class="tab" onclick="tab('sets',this)">📚 セット</button>
+<button class="tab" onclick="tab('transfer',this)">📦 引継ぎ</button>
+</div>
+
+<section class="panel active" id="quiz">
+<div class="card">
+<div class="question">
+<div class="q-label">RANDOM QUESTION</div>
+<div class="q-text" id="qText">問題を追加してください</div>
+</div>
+<div class="answer" id="answer">
+<div class="a-label">ANSWER</div>
+<div class="a-text" id="aText"></div>
+</div>
+<div class="row" style="margin-top:12px">
+<button class="green" onclick="toggleAnswer()">👀 答えを見る</button>
+<button class="primary" onclick="next()">🎲 次の問題</button>
+</div>
+<div class="row" style="margin-top:10px">
+<button class="pink full" onclick="resetRound()">↩ 元通りにする</button>
+</div>
+<p class="small" style="text-align:center;margin-bottom:0">1周するまで全問1回ずつ出題。全問終了すると自動で次の周になります。</p>
+</div>
+</section>
+
+<section class="panel" id="manage">
+<div class="card">
+<div class="field">
+<label>問題文</label>
+<textarea id="qInput" placeholder="問題を入力（Enterで答え欄へ）"></textarea>
+</div>
+<div class="field">
+<label>答え</label>
+<textarea id="aInput" placeholder="答えを入力（Enterで登録・Shift+Enterで改行）"></textarea>
+</div>
+<div class="row">
+<button class="primary" onclick="addQuestion()">＋ 問題を追加</button>
+<button class="gray" onclick="clearInput()">クリア</button>
+</div>
+</div>
+<div class="card">
+<div style="font-weight:900;margin-bottom:12px">登録した問題</div>
+<div class="list" id="list"></div>
+</div>
+</section>
+
+<section class="panel" id="sets">
+<div class="card">
+<div style="font-weight:900;margin-bottom:12px">📚 保存した問題セット</div>
+<div class="list" id="setsList"></div>
+</div>
+<div class="card">
+<div class="field">
+<label>セットのタイトル</label>
+<input id="setTitle" placeholder="例：英単語テスト、歴史の問題">
+</div>
+<button class="primary full" onclick="saveSet()">このタイトルで保存</button>
+</div>
+</section>
+
+<section class="panel" id="transfer">
+<div class="card">
+<div style="font-weight:900;margin-bottom:10px">📤 引き継ぎコード作成</div>
+<button class="primary full" onclick="exportCode()">コードを作る</button>
+<textarea id="export" style="margin-top:10px" placeholder="コードがここに表示されます"></textarea>
+<button class="secondary full" style="margin-top:8px" onclick="copyCode()">📋 コピー</button>
+<hr>
+<div style="font-weight:900;margin-bottom:10px">📥 コードを読み込む</div>
+<textarea id="import" placeholder="コードを貼り付け"></textarea>
+<div class="row" style="margin-top:8px">
+<button class="secondary" onclick="pasteCode()">📋 貼り付け</button>
+<button class="green" onclick="importCode()">追加読み込み</button>
+</div>
+<button class="red full" style="margin-top:8px" onclick="replaceCode()">全部置き換える</button>
+</div>
+</section>
+</main>
+<div class="toast" id="toast"></div>
 
 <script>
-const STORAGE_KEY="random_question_mechanism_v1";
+const KEY="question_random_mechanism_v2";
 let questions=[];
-let lastQuestionId=null;
-let currentQuestion=null;
-let editingId=null;
-let playCount=0;
+let sets=[];
+let activeSetId=null;
+let current=null;
+let bag=[];
+let rounds=0;
+let editing=null;
+let answerVisible=false;
 
-function loadData(){
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
+function toast(s){
+ let t=document.getElementById("toast");t.textContent=s;t.classList.add("show");
+ clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.classList.remove("show"),2200)
+}
+function load(){
  try{
-  const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}");
-  questions=Array.isArray(saved.questions)?saved.questions:[];
-  playCount=Number(saved.playCount)||0;
- }catch(e){questions=[];playCount=0}
- updateStats();
- renderList();
+  let d=JSON.parse(localStorage.getItem(KEY)||"{}");
+  questions=d.questions||[];sets=d.sets||[];
+  activeSetId=d.activeSetId||null;
+  rounds=d.rounds||0;bag=d.bag||[];
+ }catch(e){}
+ update();render();renderSets();setSetName();
 }
-
-function saveData(){
- localStorage.setItem(STORAGE_KEY,JSON.stringify({questions,playCount}));
- updateStats();
- renderList();
+function persist(){
+ localStorage.setItem(KEY,JSON.stringify({questions,sets,activeSetId,rounds,bag}));
+ update();render();renderSets();setSetName();
 }
-
-function updateStats(){
- document.getElementById("totalCount").textContent=questions.length;
- document.getElementById("playCount").textContent=playCount;
+function update(){
+ document.getElementById("total").textContent=questions.length;
+ document.getElementById("round").textContent=rounds;
 }
-
-function showTab(id,btn){
- document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
- document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
- document.getElementById(id).classList.add("active");
- btn.classList.add("active");
- if(id==="manage")renderList();
+function setSetName(){
+ let s=sets.find(x=>x.id===activeSetId);
+ document.getElementById("currentSetName").textContent=s?s.title:"未保存の問題セット";
 }
-
-function toast(message){
- const el=document.getElementById("toast");
- el.textContent=message;el.classList.add("show");
- clearTimeout(window.toastTimer);
- window.toastTimer=setTimeout(()=>el.classList.remove("show"),2200);
+function tab(id,btn){
+ document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+ document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+ document.getElementById(id).classList.add("active");btn.classList.add("active");
+ if(id==="manage")render();
+ if(id==="sets")renderSets();
 }
-
-function saveQuestion(){
- const q=document.getElementById("questionInput").value.trim();
- const a=document.getElementById("answerInput").value.trim();
+function addQuestion(){
+ let q=document.getElementById("qInput").value.trim();
+ let a=document.getElementById("aInput").value.trim();
  if(!q||!a){toast("問題文と答えを両方入力してね");return}
- if(editingId){
-  const item=questions.find(x=>x.id===editingId);
-  if(item){item.question=q;item.answer=a}
-  toast("問題を更新しました");
+ if(editing){
+  let x=questions.find(z=>z.id===editing);if(x){x.q=q;x.a=a}
+  editing=null;toast("編集しました");
  }else{
-  questions.push({id:Date.now().toString()+Math.random().toString(16).slice(2),question:q,answer:a});
-  toast("問題を追加しました！");
+  questions.push({id:uid(),q,a});toast("問題を追加しました！");
  }
- clearForm();saveData();
+ clearInput();bag=[];current=null;hideAnswer();persist();
 }
-
-function clearForm(){
- document.getElementById("questionInput").value="";
- document.getElementById("answerInput").value="";
- editingId=null;
- document.getElementById("formTitle").textContent="➕ 問題を追加";
+function clearInput(){
+ document.getElementById("qInput").value="";
+ document.getElementById("aInput").value="";
+ editing=null;
 }
-
-function editQuestion(id){
- const item=questions.find(x=>x.id===id);
- if(!item)return;
- editingId=id;
- document.getElementById("questionInput").value=item.question;
- document.getElementById("answerInput").value=item.answer;
- document.getElementById("formTitle").textContent="✏️ 問題を編集";
- window.scrollTo({top:0,behavior:"smooth"});
+function render(){
+ let el=document.getElementById("list");
+ if(!questions.length){el.innerHTML='<div class="empty">問題はまだありません</div>';return}
+ el.innerHTML=questions.map((x,i)=>`<div class="item">
+ <div class="item-body"><div class="item-q">${i+1}. ${esc(x.q)}</div><div class="item-a">答え：${esc(x.a)}</div></div>
+ <div class="item-buttons"><button class="secondary" onclick="edit('${x.id}')">編集</button><button class="red" onclick="del('${x.id}')">削除</button></div></div>`).join("")
 }
-
-function deleteQuestion(id){
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function edit(id){
+ let x=questions.find(z=>z.id===id);if(!x)return;
+ editing=id;document.getElementById("qInput").value=x.q;document.getElementById("aInput").value=x.a;
+ document.getElementById("qInput").focus();window.scrollTo({top:0,behavior:"smooth"})
+}
+function del(id){
  if(!confirm("この問題を削除しますか？"))return;
- questions=questions.filter(x=>x.id!==id);
- if(editingId===id)clearForm();
- saveData();toast("削除しました");
+ questions=questions.filter(x=>x.id!==id);bag=[];current=null;hideAnswer();persist();toast("削除しました")
 }
-
-function renderList(){
- const box=document.getElementById("questionList");
- if(!questions.length){
-  box.innerHTML='<div class="empty">まだ問題がありません。上から追加してね！</div>';
-  return;
+function shuffle(a){
+ for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+ return a
+}
+function next(){
+ if(!questions.length){toast("先に問題を追加してね");return}
+ if(!bag.length){
+  bag=shuffle(questions.map(x=>x.id));
+  rounds++;
  }
- box.innerHTML=questions.map((item,index)=>`
-  <div class="item">
-   <div class="item-content">
-    <div class="item-q">${index+1}. ${escapeHtml(item.question)}</div>
-    <div class="item-a">答え：${escapeHtml(item.answer)}</div>
-   </div>
-   <div class="item-actions">
-    <button class="small-btn secondary" onclick="editQuestion('${item.id}')">編集</button>
-    <button class="small-btn danger" onclick="deleteQuestion('${item.id}')">削除</button>
-   </div>
-  </div>`).join("");
-}
-
-function escapeHtml(str){
- return String(str).replace(/[&<>"']/g,m=>({
-  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
- }[m]));
-}
-
-function nextQuestion(){
- if(!questions.length){
-  document.getElementById("questionText").textContent="まず問題を登録してね！";
-  document.getElementById("answerBox").style.display="none";
-  return;
+ let id=bag.pop();
+ if(questions.length>1&&id===current?.id&&bag.length){
+  let swap=bag[bag.length-1];bag[bag.length-1]=id;id=swap;
  }
- let pool=questions;
- if(questions.length>1&&lastQuestionId){
-  pool=questions.filter(q=>q.id!==lastQuestionId);
+ current=questions.find(x=>x.id===id)||questions[0];
+ document.getElementById("qText").textContent=current.q;
+ document.getElementById("aText").textContent=current.a;
+ hideAnswer();persist();
+}
+function toggleAnswer(){
+ if(!current){if(questions.length){next()}else{toast("問題を追加してね");return}}
+ answerVisible=!answerVisible;
+ document.getElementById("answer").style.display=answerVisible?"block":"none";
+}
+function hideAnswer(){answerVisible=false;document.getElementById("answer").style.display="none"}
+function resetRound(){
+ bag=[];rounds=0;current=null;hideAnswer();
+ document.getElementById("qText").textContent="問題を追加してください";
+ document.getElementById("aText").textContent="";
+ persist();toast("周回をリセットしました")
+}
+function newSet(){
+ if(!confirm("新しい問題セットを作りますか？現在の問題は保存されていない場合、セットに保存されません。"))return;
+ questions=[];activeSetId=null;rounds=0;bag=[];current=null;hideAnswer();
+ document.getElementById("qText").textContent="問題を追加してください";
+ document.getElementById("setTitle").value="";
+ persist();toast("新しいセットを作りました")
+}
+function saveSet(){
+ let title=document.getElementById("setTitle").value.trim();
+ if(!title){
+  title=prompt("保存する問題セットのタイトルを入力してください");
+  if(!title)return;
+  document.getElementById("setTitle").value=title;
  }
- const selected=pool[Math.floor(Math.random()*pool.length)];
- currentQuestion=selected;
- lastQuestionId=selected.id;
- document.getElementById("questionText").textContent=selected.question;
- document.getElementById("answerText").textContent=selected.answer;
- document.getElementById("answerBox").style.display="none";
- playCount++;
- saveData();
-}
-
-function showAnswer(){
- if(!currentQuestion){
-  if(questions.length){nextQuestion()}
-  else{toast("先に問題を登録してね");return}
+ let existing=sets.find(x=>x.id===activeSetId);
+ if(existing){existing.title=title;existing.questions=JSON.parse(JSON.stringify(questions))}
+ else{
+  let s={id:uid(),title,questions:JSON.parse(JSON.stringify(questions))};
+  sets.push(s);activeSetId=s.id;
  }
- const box=document.getElementById("answerBox");
- box.style.display=box.style.display==="block"?"none":"block";
+ persist();toast("「"+title+"」を保存しました！");
 }
-
-function exportData(){
- const payload={version:1,questions,playCount};
- const code=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
- document.getElementById("exportCode").value="QRM1-"+code;
- toast("引き継ぎコードを作りました");
+function renderSets(){
+ let el=document.getElementById("setsList");
+ if(!sets.length){el.innerHTML='<div class="empty">保存したセットはありません</div>';return}
+ el.innerHTML=sets.map(s=>`<div class="set-item">
+ <div class="set-name">${esc(s.title)}<div class="small">${s.questions.length}問</div></div>
+ <button class="green" onclick="loadSet('${s.id}')">開く</button>
+ <button class="secondary" onclick="renameSet('${s.id}')">名前</button>
+ <button class="red" onclick="deleteSet('${s.id}')">削除</button>
+ </div>`).join("")
 }
-
+function loadSet(id){
+ let s=sets.find(x=>x.id===id);if(!s)return;
+ if(!confirm("「"+s.title+"」を読み込みますか？現在の問題セットは置き換わります。"))return;
+ questions=JSON.parse(JSON.stringify(s.questions));activeSetId=id;bag=[];rounds=0;current=null;hideAnswer();
+ document.getElementById("qText").textContent="問題を追加してください";
+ persist();toast("セットを読み込みました")
+}
+function renameSet(id){
+ let s=sets.find(x=>x.id===id);if(!s)return;
+ let n=prompt("新しいタイトル",s.title);if(n&&n.trim()){s.title=n.trim();persist()}
+}
+function deleteSet(id){
+ if(!confirm("この保存セットを削除しますか？"))return;
+ sets=sets.filter(x=>x.id!==id);if(activeSetId===id)activeSetId=null;persist();toast("削除しました")
+}
+function exportCode(){
+ let data={questions,sets,activeSetId,rounds,bag};
+ document.getElementById("export").value="QRM2-"+btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+ toast("引き継ぎコードを作成しました")
+}
 async function copyCode(){
- const code=document.getElementById("exportCode").value;
- if(!code){toast("先にコードを作ってね");return}
+ let x=document.getElementById("export").value;if(!x){toast("先にコードを作ってね");return}
+ try{await navigator.clipboard.writeText(x);toast("コピーしました！")}
+ catch(e){document.getElementById("export").select();document.execCommand("copy");toast("コピーしました")}
+}
+async function pasteCode(){
+ try{let t=await navigator.clipboard.readText();document.getElementById("import").value=t;toast("貼り付けました")}
+ catch(e){toast("貼り付けできません。入力欄を長押しして貼り付けてね")}
+}
+function decode(){
+ let c=document.getElementById("import").value.trim();
+ if(!c.startsWith("QRM2-"))throw 0;
+ return JSON.parse(decodeURIComponent(escape(atob(c.slice(5)))))
+}
+function importCode(){
  try{
-  await navigator.clipboard.writeText(code);
-  toast("コピーしました！");
- }catch(e){
-  document.getElementById("exportCode").select();
-  document.execCommand("copy");
-  toast("コピーしました！");
- }
+  let d=decode();
+  questions.push(...(d.questions||[]).map(x=>({id:uid(),q:x.q,a:x.a})));
+  sets.push(...(d.sets||[]));persist();toast("追加読み込み完了")
+ }catch(e){toast("コードが正しくありません")}
 }
-
-function decodeCode(raw){
- const code=raw.trim().replace(/\s/g,"");
- if(!code.startsWith("QRM1-"))throw new Error("コードの形式が違います");
- const data=JSON.parse(decodeURIComponent(escape(atob(code.slice(5)))));
- if(!Array.isArray(data.questions))throw new Error("問題データがありません");
- return data;
-}
-
-function importData(){
+function replaceCode(){
+ if(!confirm("現在のデータをコードの内容に置き換えますか？"))return;
  try{
-  const data=decodeCode(document.getElementById("importCode").value);
-  let added=0;
-  data.questions.forEach(item=>{
-   if(item.question&&item.answer){
-    questions.push({id:Date.now().toString()+Math.random().toString(16).slice(2),question:item.question,answer:item.answer});
-    added++;
-   }
-  });
-  saveData();
-  toast(added+"問を追加しました");
-  document.getElementById("importCode").value="";
- }catch(e){toast("コードを確認してください")}
+  let d=decode();questions=d.questions||[];sets=d.sets||[];
+  activeSetId=d.activeSetId||null;rounds=d.rounds||0;bag=d.bag||[];
+  current=null;hideAnswer();persist();toast("置き換え完了")
+ }catch(e){toast("コードが正しくありません")}
 }
-
-function replaceData(){
- if(!confirm("現在の問題をすべて消して、コードの内容に置き換えますか？"))return;
- try{
-  const data=decodeCode(document.getElementById("importCode").value);
-  questions=data.questions.map(item=>({
-   id:Date.now().toString()+Math.random().toString(16).slice(2),
-   question:item.question,answer:item.answer
-  }));
-  playCount=Number(data.playCount)||0;
-  currentQuestion=null;lastQuestionId=null;
-  saveData();toast("データを置き換えました");
-  document.getElementById("importCode").value="";
- }catch(e){toast("コードを確認してください")}
-}
-
-function clearAll(){
- if(!confirm("本当に全問題を削除しますか？この操作は戻せません。"))return;
- questions=[];currentQuestion=null;lastQuestionId=null;playCount=0;
- saveData();clearForm();
- document.getElementById("questionText").textContent="問題を登録するとここに表示されます";
- document.getElementById("answerBox").style.display="none";
- toast("全問題を削除しました");
-}
-
-loadData();
+document.getElementById("qInput").addEventListener("keydown",e=>{
+ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();document.getElementById("aInput").focus()}
+});
+document.getElementById("aInput").addEventListener("keydown",e=>{
+ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();addQuestion()}
+});
+load();
 </script>
 </body>
 </html>
