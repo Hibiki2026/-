@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -132,6 +131,19 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 <button class="secondary" onclick="hideManage()">閉じる</button>
 </section>
 
+<section class="panel" id="sharePanel">
+<h3>🔗 セットを共有（RenderのURLで共有）</h3>
+<p class="muted">共有したいセットを選び、リンクを作成してください。リンクを開くと選んだセットが追加されます。既存セットは消えません。</p>
+<div id="shareSetList"></div>
+<div class="row" style="margin-top:8px">
+<button class="secondary" onclick="selectAllShareSets(true)">全セット選択</button>
+<button class="secondary" onclick="selectAllShareSets(false)">選択解除</button>
+</div>
+<button onclick="createShareLink()" style="width:100%;margin-top:10px">共有リンクを作る</button>
+<textarea id="shareLink" placeholder="ここに共有リンクが表示されます" readonly style="margin-top:10px;min-height:90px"></textarea>
+<button class="secondary" onclick="copyShareLink()" style="width:100%;margin-top:8px">共有リンクをコピー</button>
+</section>
+
 <section class="panel">
 <h3>🔄 引き継ぎ</h3>
 <textarea id="transfer" placeholder="引き継ぎコード"></textarea>
@@ -236,6 +248,7 @@ function getQ(q){
 function render(){
  renderSets();
  renderQuiz();
+ renderShareSets();
 }
 
 function renderSets(){
@@ -739,6 +752,77 @@ function deleteSet(id){
  renderManage();
 }
 
+function sharePayloadForSets(selectedIds){
+ return {type:"QRM3",sets:data.sets.filter(s=>selectedIds.includes(String(s.id))).map(s=>({
+  name:s.name,
+  questions:setQuestions(s).map(q=>({q:q.q,a:q.a})),
+  checkedQuestions:setQuestions(s).filter(q=>(s.checkedIds||[]).map(String).includes(String(q.id))).map(q=>({q:q.q,a:q.a})),
+  mustQuestions:setQuestions(s).filter(q=>(s.mustIds||[]).map(String).includes(String(q.id))).map(q=>({q:q.q,a:q.a}))
+ }))};
+}
+function renderShareSets(){
+ const el=document.getElementById("shareSetList");
+ if(!el)return;
+ el.innerHTML="";
+ if(!data.sets.length){el.innerHTML='<p class="muted">共有できるセットがまだありません。</p>';return;}
+ data.sets.forEach(s=>{
+  const label=document.createElement("label");
+  label.style.cssText="display:flex;align-items:center;gap:10px;background:#f3f4ff;padding:10px;border-radius:10px;margin:7px 0;cursor:pointer";
+  const cb=document.createElement("input");
+  cb.type="checkbox";cb.className="shareSetCheck";cb.value=String(s.id);cb.style.cssText="width:22px;height:22px;flex:0 0 auto";
+  const txt=document.createElement("span");txt.textContent=(s.name||"名前なし")+"（"+setQuestions(s).length+"問）";
+  label.append(cb,txt);el.append(label);
+ });
+}
+function selectAllShareSets(checked){document.querySelectorAll(".shareSetCheck").forEach(cb=>cb.checked=checked);}
+function createShareLink(){
+ const ids=[...document.querySelectorAll(".shareSetCheck:checked")].map(cb=>cb.value);
+ if(!ids.length){alert("共有するセットを選んでください");return;}
+ const payload=sharePayloadForSets(ids);
+ const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+ const link=location.origin+location.pathname+"#QRM3SHARE="+encoded;
+ document.getElementById("shareLink").value=link;
+ alert("共有リンクを作りました！リンクを相手に送ってください。");
+}
+async function copyShareLink(){
+ const el=document.getElementById("shareLink");
+ if(!el.value){createShareLink();if(!el.value)return;}
+ try{await navigator.clipboard.writeText(el.value);alert("共有リンクをコピーしました！");}
+ catch(e){el.focus();el.select();document.execCommand("copy");alert("コピーしました（コピーできない場合は選択してコピーしてください）");}
+}
+function importPayloadSets(obj,notify=true){
+ const sets=obj.sets||[];
+ if(!Array.isArray(sets))throw new Error("sets is not an array");
+ let added=0;
+ sets.forEach(s=>{
+  const qs=s.questions||s.items||[];
+  const newSet={id:uid(),name:s.name||"読み込みセット",questionIds:[],questions:[],checkedIds:[],mustIds:[]};
+  qs.forEach(q=>{
+   const nq={id:uid(),q:q.q??q.question??"",a:q.a??q.answer??""};
+   data.questions.push(nq);newSet.questionIds.push(nq.id);newSet.questions.push(nq);
+  });
+  (s.checkedQuestions||[]).forEach(c=>{const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);if(found)newSet.checkedIds.push(String(found.id));});
+  (s.mustQuestions||[]).forEach(c=>{const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);if(found)newSet.mustIds.push(String(found.id));});
+  data.sets.push(newSet);added++;
+  currentSetId=newSet.id;
+  data.activeSetId=newSet.id;
+ });
+ if(added){currentQuestion=null;answerShown=false;currentBag=[];currentRound=0;reviewMode=false;lastComment="";saveData();render();}
+ if(notify&&added)alert(added+"セット読み込みました！");
+ return added;
+}
+function importShareFromUrl(){
+ const hash=location.hash;
+ if(!hash.startsWith("#QRM3SHARE="))return;
+ try{
+  const encoded=hash.slice("#QRM3SHARE=".length);
+  const obj=JSON.parse(decodeURIComponent(escape(atob(encoded))));
+  if(obj.type!=="QRM3"||!Array.isArray(obj.sets))throw new Error();
+  importPayloadSets(obj,false);
+  history.replaceState(null,"",location.pathname+location.search);
+ }catch(e){alert("共有リンクが正しくないか、内容を読み込めませんでした。");}
+}
+
 function exportCode(){
  const payload={
   type:"QRM3",
@@ -766,38 +850,8 @@ function importCode(){
  try{
   const raw=code.startsWith("QRM3-")?code.slice(5):code;
   const obj=JSON.parse(decodeURIComponent(escape(atob(raw))));
-  const sets=obj.sets||[];
-  if(!Array.isArray(sets))throw new Error();
-
-  sets.forEach(s=>{
-   const qs=s.questions||s.items||[];
-   const newSet={id:uid(),name:s.name||"読み込みセット",questionIds:[],questions:[],checkedIds:[],mustIds:[]};
-
-   qs.forEach(q=>{
-    const nq={id:uid(),q:q.q??q.question??"",a:q.a??q.answer??""};
-    data.questions.push(nq);
-    newSet.questionIds.push(nq.id);
-    newSet.questions.push(nq);
-   });
-
-   (s.checkedQuestions||[]).forEach(c=>{
-    const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);
-    if(found)newSet.checkedIds.push(String(found.id));
-   });
-   (s.mustQuestions||[]).forEach(c=>{
-    const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);
-    if(found)newSet.mustIds.push(String(found.id));
-   });
-
-   data.sets.push(newSet);
-  });
-
-  saveData();
-  render();
-  alert("読み込みました！");
- }catch(e){
-  alert("コードが正しくありません");
- }
+  importPayloadSets(obj,true);
+ }catch(e){alert("コードが正しくありません");}
 }
 
 document.getElementById("questionInput").addEventListener("keydown",e=>{
@@ -831,6 +885,7 @@ document.addEventListener("keydown",e=>{
 loadData();
 if(data.activeSetId&&getSet(data.activeSetId))currentSetId=data.activeSetId;
 render();
+importShareFromUrl();
 </script>
 </body>
 </html>
