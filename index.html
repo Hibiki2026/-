@@ -16,18 +16,16 @@ button:active{transform:scale(.97)}
 .gray{background:#e5e8f1;color:#30364d}
 .red{background:#ffeded;color:#c43c49}
 .green{background:#dff8e9;color:#17834a}
-header{height:65px;background:#fff;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:0 2px 12px #00000009;position:sticky;top:0;z-index:10}
+header{height:65px;background:white;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:0 2px 12px #00000009;position:sticky;top:0;z-index:10}
 header h1{font-size:19px;margin:0}
 #layout{display:flex;min-height:calc(100vh - 65px)}
-#sidebar{width:270px;background:#fff;border-right:1px solid #e5e8f0;padding:16px;flex-shrink:0;transition:.25s;overflow:hidden}
+#sidebar{width:270px;background:white;border-right:1px solid #e5e8f0;padding:16px;flex-shrink:0;transition:.25s;overflow:hidden}
 #sidebar.closed{width:0;padding:0;border:0}
 .sidebar-inner{width:238px}
 .side-title{font-weight:bold;font-size:17px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
 .set-list{display:flex;flex-direction:column;gap:7px}
-.set-item{display:flex;gap:4px}
-.set-item button:first-child{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.set-item button{width:100%;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .set-item button.active{background:#e9ebff;color:#4955df}
-.set-item button.delete{padding:8px;color:#bd4451;background:#fff0f0}
 #main{flex:1;min-width:0;padding:20px;max-width:1100px;margin:0 auto}
 .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
 .nav button{background:#e6e9f3;color:#434963}
@@ -37,7 +35,8 @@ header h1{font-size:19px;margin:0}
 .card{background:white;padding:20px;border-radius:18px;box-shadow:0 3px 15px #00000006;margin-bottom:16px}
 .card h2{margin:0 0 15px;font-size:20px}
 .current-set{font-size:14px;color:#69718c;margin-bottom:10px}
-.round{font-size:14px;color:#65708b;margin-bottom:12px}
+.progress{font-size:22px;font-weight:800;color:#5865f2;text-align:center;margin:12px 0}
+.round{font-size:14px;color:#65708b;text-align:center;margin-bottom:12px}
 .question{font-size:clamp(24px,5vw,42px);font-weight:bold;text-align:center;min-height:150px;display:flex;align-items:center;justify-content:center;white-space:pre-wrap;overflow-wrap:anywhere}
 .answer{font-size:22px;text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f5ff;border-radius:14px;padding:16px;margin:12px 0}
 .buttons{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
@@ -46,21 +45,20 @@ input,textarea{width:100%;border:1px solid #dce0eb;border-radius:12px;padding:12
 input:focus,textarea:focus{border-color:#5865f2;box-shadow:0 0 0 3px #5865f220}
 textarea{resize:vertical;min-height:80px}
 label{display:block;font-weight:bold;margin:12px 0 6px}
-.formrow{display:flex;gap:8px}
-.formrow>*{flex:1}
 .list-item{border:1px solid #e5e8f0;padding:14px;border-radius:14px;margin-bottom:10px}
 .list-item strong{display:block;margin-bottom:6px;white-space:pre-wrap;overflow-wrap:anywhere}
 .list-item .small{font-size:13px;color:#747b91;white-space:pre-wrap;overflow-wrap:anywhere}
 .list-item .buttons{margin-top:10px}
 .empty{color:#7b8298;text-align:center;padding:25px}
 #overlay{display:none}
+.notice{background:#f1f3ff;color:#4e58ba;padding:12px;border-radius:12px;margin-bottom:12px}
 @media(max-width:700px){
-#sidebar{position:fixed;z-index:20;left:0;top:65px;bottom:0;box-shadow:5px 0 25px #0002}
-#sidebar.closed{width:0}
-#overlay.show{display:block;position:fixed;inset:65px 0 0;background:#0005;z-index:15}
-#main{padding:12px}
-.card{padding:15px}
-.question{min-height:120px}
+ #sidebar{position:fixed;z-index:20;left:0;top:65px;bottom:0;box-shadow:5px 0 25px #0002}
+ #sidebar.closed{width:0}
+ #overlay.show{display:block;position:fixed;inset:65px 0 0;background:#0005;z-index:15}
+ #main{padding:12px}
+ .card{padding:15px}
+ .question{min-height:120px}
 }
 </style>
 </head>
@@ -81,57 +79,66 @@ label{display:block;font-weight:bold;margin:12px 0 6px}
 <button class="gray" style="padding:5px 9px" onclick="toggleSidebar()">×</button>
 </div>
 <div id="setList" class="set-list"></div>
-<button class="primary" style="width:100%;margin-top:12px" onclick="newSet()">＋ 新しいセット</button>
+<button class="primary" style="width:100%;margin-top:12px" onclick="newSet()">＋ 新規作成</button>
 </div>
 </aside>
 
 <main id="main">
-
 <div class="nav">
-<button class="active" onclick="tab('quiz',this)">問題</button>
-<button onclick="tab('manage',this)">問題編集</button>
-<button onclick="tab('sets',this)">セット保存</button>
+<button class="active" onclick="tab('quiz',this)">出題</button>
+<button onclick="tab('manage',this)">制作・編集</button>
+<button onclick="tab('sets',this)">セット管理</button>
 <button onclick="tab('transfer',this)">引き継ぎ</button>
 </div>
 
 <section id="quiz" class="panel active">
 <div class="card">
+<div id="quizEmpty" class="empty">
+サイドバーからセットを選択してください
+</div>
+
+<div id="quizContent" style="display:none">
 <div class="current-set" id="currentSetName"></div>
-<div class="round" id="roundDisplay">第0周</div>
-<div class="question" id="questionDisplay">問題を登録してください</div>
+<div class="round" id="roundDisplay"></div>
+<div class="progress" id="progressDisplay"></div>
+<div class="question" id="questionDisplay"></div>
 <div id="answerArea" class="answer" style="display:none"></div>
+
 <div class="buttons">
-<button class="primary" onclick="nextQuestion()">🎲 次の問題</button>
-<button class="dark" onclick="toggleAnswer()" id="answerButton">答えを見る</button>
+<button class="primary" id="nextButton" onclick="nextQuestion()">始める</button>
+<button class="dark" onclick="toggleAnswer()" id="answerButton" style="display:none">答えを見る</button>
 <button class="gray" onclick="resetRound()">🔄 元通りにする</button>
+</div>
 </div>
 </section>
 
 <section id="manage" class="panel">
 <div class="card">
-<h2>問題を追加</h2>
+<h2>問題セット制作・編集</h2>
+<div class="notice" id="editNotice"></div>
+
+<label>セット名</label>
+<input id="setTitle" placeholder="例：英単語・歴史・数学">
+
 <label>問題</label>
 <textarea id="qInput" placeholder="問題を入力（Enterで答え欄へ）"></textarea>
+
 <label>答え</label>
 <textarea id="aInput" placeholder="答えを入力（Enterで追加・Shift+Enterで改行）"></textarea>
+
 <button class="primary" style="width:100%;margin-top:10px" onclick="addQuestion()">＋ 問題を追加</button>
+<button class="dark" style="width:100%;margin-top:10px" onclick="saveSet()">💾 セットを保存</button>
 </div>
+
 <div class="card">
-<h2>登録済み問題 <span id="count"></span></h2>
+<h2>制作中の問題 <span id="count"></span></h2>
 <div id="questionList"></div>
 </div>
 </section>
 
 <section id="sets" class="panel">
 <div class="card">
-<h2>セットを保存</h2>
-<p>現在の問題をセットとして保存できます。</p>
-<label>セット名</label>
-<input id="setTitle" placeholder="例：英単語、歴史、数学">
-<button class="primary" style="width:100%;margin-top:10px" onclick="saveSet()">💾 保存</button>
-</div>
-<div class="card">
-<h2>セット管理</h2>
+<h2>保存済みセット管理</h2>
 <div id="setManageList"></div>
 </div>
 </section>
@@ -139,13 +146,14 @@ label{display:block;font-weight:bold;margin:12px 0 6px}
 <section id="transfer" class="panel">
 <div class="card">
 <h2>引き継ぎコード</h2>
-<p>セットを別の端末に移動したり、バックアップできます。</p>
+<p>セットをバックアップしたり、別の端末に移動できます。</p>
 <button class="primary" onclick="generateCode()">コードを作成</button>
-<textarea id="codeOutput" style="margin-top:12px" placeholder="作成したコードがここに表示されます"></textarea>
+<textarea id="codeOutput" style="margin-top:12px" placeholder="作成したコード"></textarea>
 <div class="buttons" style="margin-top:8px">
 <button class="dark" onclick="copyCode()">📋 コピー</button>
 <button class="gray" onclick="pasteCode()">📥 貼り付け</button>
 </div>
+
 <label>引き継ぎコードを入力</label>
 <textarea id="codeInput" placeholder="引き継ぎコードを貼り付け"></textarea>
 <div class="buttons" style="margin-top:8px">
@@ -160,9 +168,13 @@ label{display:block;font-weight:bold;margin:12px 0 6px}
 
 <script>
 const KEY="question_random_mechanism_v3";
-let data=JSON.parse(localStorage.getItem(KEY)||"null");
-if(!data)data={questions:[],sets:[],activeSetId:null,bag:[],rounds:0};
 
+let data;
+try{
+ data=JSON.parse(localStorage.getItem(KEY)||"null");
+}catch(e){data=null}
+
+if(!data)data={questions:[],sets:[],activeSetId:null,bag:[],rounds:0};
 data.questions ||= [];
 data.sets ||= [];
 data.bag ||= [];
@@ -174,9 +186,11 @@ let revealed=false;
 function saveData(){
  localStorage.setItem(KEY,JSON.stringify(data));
 }
+
 function uid(){
  return Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 }
+
 function shuffle(arr){
  for(let i=arr.length-1;i>0;i--){
   let j=Math.floor(Math.random()*(i+1));
@@ -184,6 +198,11 @@ function shuffle(arr){
  }
  return arr;
 }
+
+function activeSet(){
+ return data.sets.find(s=>s.id===data.activeSetId)||null;
+}
+
 function tab(name,btn){
  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
  document.getElementById(name).classList.add("active");
@@ -191,238 +210,442 @@ function tab(name,btn){
  if(btn)btn.classList.add("active");
  render();
 }
+
 function toggleSidebar(force){
  const s=document.getElementById("sidebar");
  if(force===undefined)s.classList.toggle("closed");
  else if(force)s.classList.remove("closed");
  else s.classList.add("closed");
- document.getElementById("overlay").classList.toggle("show",!s.classList.contains("closed")&&innerWidth<=700);
+
+ document.getElementById("overlay").classList.toggle(
+  "show",!s.classList.contains("closed")&&innerWidth<=700
+ );
 }
-function activeSet(){
- return data.sets.find(s=>s.id===data.activeSetId);
-}
-function updateSetName(){
- document.getElementById("currentSetName").textContent=
- activeSet()?"📚 "+activeSet().name:"未保存の問題セット";
-}
+
 function render(){
  renderSets();
  renderQuestions();
- updateSetName();
+ renderQuiz();
+
+ const s=activeSet();
+ document.getElementById("editNotice").textContent=
+ s
+ ? "編集中："+s.name+"（変更は保存するまで出題内容に反映されません）"
+ : "新しいセットを制作中です。保存するまでは出題できません。";
+}
+
+function renderQuiz(){
+ const s=activeSet();
+
+ document.getElementById("quizEmpty").style.display=s?"none":"block";
+ document.getElementById("quizContent").style.display=s?"block":"none";
+
+ if(!s)return;
+
+ const total=s.questions.length;
+
+ document.getElementById("currentSetName").textContent="📚 "+s.name;
  document.getElementById("roundDisplay").textContent="第"+data.rounds+"周";
+
  if(current){
+  const answeredCount=total-data.bag.length;
+  document.getElementById("progressDisplay").textContent=
+   answeredCount+" / "+total;
   document.getElementById("questionDisplay").textContent=current.q;
-  document.getElementById("answerArea").textContent=current.a;
+  document.getElementById("nextButton").textContent="次の問題";
+  document.getElementById("answerButton").style.display="inline-block";
  }else{
-  document.getElementById("questionDisplay").textContent=data.questions.length?"次の問題を押してください":"問題を登録してください";
-  document.getElementById("answerArea").textContent="";
+  document.getElementById("progressDisplay").textContent="0 / "+total;
+  document.getElementById("questionDisplay").textContent="準備完了";
+  document.getElementById("nextButton").textContent="始める";
+  document.getElementById("answerButton").style.display="none";
  }
+
+ document.getElementById("answerArea").textContent=current?current.a:"";
  document.getElementById("answerArea").style.display=revealed&&current?"block":"none";
  document.getElementById("answerButton").textContent=revealed?"答えを隠す":"答えを見る";
 }
+
 function renderSets(){
  const list=document.getElementById("setList");
  list.innerHTML="";
+
  data.sets.forEach(s=>{
   const div=document.createElement("div");
   div.className="set-item";
+
   const b=document.createElement("button");
   b.className="gray"+(s.id===data.activeSetId?" active":"");
   b.textContent=s.name;
   b.onclick=()=>loadSet(s.id);
+
   div.appendChild(b);
   list.appendChild(div);
  });
+
  const manage=document.getElementById("setManageList");
  manage.innerHTML="";
+
+ if(!data.sets.length){
+  manage.innerHTML='<div class="empty">保存済みセットはありません</div>';
+  return;
+ }
+
  data.sets.forEach(s=>{
   const div=document.createElement("div");
   div.className="list-item";
+
   const title=document.createElement("strong");
   title.textContent=s.name;
+
   const info=document.createElement("div");
   info.className="small";
   info.textContent=(s.questions||[]).length+"問";
+
   const row=document.createElement("div");
   row.className="buttons";
+
   const open=document.createElement("button");
-  open.className="primary";open.textContent="開く";
+  open.className="primary";
+  open.textContent="出題";
   open.onclick=()=>loadSet(s.id);
+
+  const edit=document.createElement("button");
+  edit.className="gray";
+  edit.textContent="編集";
+  edit.onclick=()=>editSet(s.id);
+
   const rename=document.createElement("button");
-  rename.className="gray";rename.textContent="名前変更";
+  rename.className="gray";
+  rename.textContent="名前変更";
   rename.onclick=()=>{
    const n=prompt("新しいセット名",s.name);
-   if(n&&n.trim()){s.name=n.trim();saveData();render();}
-  };
-  const del=document.createElement("button");
-  del.className="red";del.textContent="削除";
-  del.onclick=()=>{
-   if(confirm("このセットを削除しますか？")){
-    data.sets=data.sets.filter(x=>x.id!==s.id);
-    if(data.activeSetId===s.id)data.activeSetId=null;
-    saveData();render();
+   if(n&&n.trim()){
+    s.name=n.trim();
+    saveData();
+    render();
    }
   };
-  row.append(open,rename,del);
+
+  const del=document.createElement("button");
+  del.className="red";
+  del.textContent="削除";
+  del.onclick=()=>{
+   if(!confirm("このセットを削除しますか？"))return;
+   data.sets=data.sets.filter(x=>x.id!==s.id);
+   if(data.activeSetId===s.id){
+    data.activeSetId=null;
+    data.questions=[];
+    data.bag=[];
+    data.rounds=0;
+    current=null;
+    revealed=false;
+   }
+   saveData();
+   render();
+  };
+
+  row.append(open,edit,rename,del);
   div.append(title,info,row);
   manage.appendChild(div);
  });
 }
+
 function renderQuestions(){
  const list=document.getElementById("questionList");
  list.innerHTML="";
  document.getElementById("count").textContent="("+data.questions.length+"問)";
+
+ if(!data.questions.length){
+  list.innerHTML='<div class="empty">まだ問題がありません</div>';
+  return;
+ }
+
  data.questions.forEach((q,i)=>{
   const div=document.createElement("div");
   div.className="list-item";
+
   const qt=document.createElement("strong");
   qt.textContent=(i+1)+". "+q.q;
+
   const at=document.createElement("div");
   at.className="small";
   at.textContent="答え："+q.a;
+
   const row=document.createElement("div");
   row.className="buttons";
+
   const edit=document.createElement("button");
-  edit.className="gray";edit.textContent="編集";
+  edit.className="gray";
+  edit.textContent="編集";
   edit.onclick=()=>{
    const nq=prompt("問題を編集",q.q);
    if(nq===null)return;
    const na=prompt("答えを編集",q.a);
    if(na===null)return;
-   q.q=nq;q.a=na;
-   saveData();render();
+   q.q=nq;
+   q.a=na;
+   render();
   };
+
   const del=document.createElement("button");
-  del.className="red";del.textContent="削除";
+  del.className="red";
+  del.textContent="削除";
   del.onclick=()=>{
    data.questions.splice(i,1);
-   data.bag=data.bag.filter(id=>id!==q.id);
-   if(current&&current.id===q.id)current=null;
-   saveData();render();
+   render();
   };
+
   row.append(edit,del);
   div.append(qt,at,row);
   list.appendChild(div);
  });
 }
+
 function addQuestion(){
  const q=document.getElementById("qInput");
  const a=document.getElementById("aInput");
- if(!q.value.trim())return q.focus();
- data.questions.push({id:uid(),q:q.value.trim(),a:a.value.trim()});
+
+ if(!q.value.trim()){
+  q.focus();
+  return;
+ }
+
+ data.questions.push({
+  id:uid(),
+  q:q.value.trim(),
+  a:a.value.trim()
+ });
+
  q.value="";
  a.value="";
- data.bag=[];
- saveData();
+
  render();
- q.focus(); // 追加したら問題欄へカーソルを戻す
+ q.focus();
 }
+
 document.getElementById("qInput").addEventListener("keydown",e=>{
  if(e.key==="Enter"&&!e.shiftKey){
   e.preventDefault();
   document.getElementById("aInput").focus();
  }
 });
+
 document.getElementById("aInput").addEventListener("keydown",e=>{
  if(e.key==="Enter"&&!e.shiftKey){
   e.preventDefault();
   addQuestion();
  }
 });
+
 function nextQuestion(){
- if(!data.questions.length)return;
+ const s=activeSet();
+ if(!s||!s.questions.length)return;
+
+ // 1周分が終わったら新しい周にする
  if(!data.bag.length){
-  data.bag=shuffle(data.questions.map(q=>q.id));
+  data.bag=shuffle(s.questions.map(q=>q.id));
   data.rounds++;
  }
+
  const id=data.bag.pop();
- current=data.questions.find(q=>q.id===id)||null;
+ current=s.questions.find(q=>q.id===id)||null;
  revealed=false;
- saveData();render();
+
+ saveData();
+ renderQuiz();
 }
+
 function toggleAnswer(){
  if(!current)return;
  revealed=!revealed;
- render();
+ renderQuiz();
 }
+
 function resetRound(){
  data.bag=[];
  data.rounds=0;
  current=null;
  revealed=false;
- saveData();render();
+ saveData();
+ renderQuiz();
 }
+
 function saveSet(){
  const title=document.getElementById("setTitle").value.trim();
- if(!title)return alert("セット名を入力してください");
+
+ if(!title){
+  alert("セット名を入力してください");
+  document.getElementById("setTitle").focus();
+  return;
+ }
+
+ if(!data.questions.length){
+  alert("問題を1問以上追加してください");
+  return;
+ }
+
  let s=activeSet();
+
  if(s){
   s.name=title;
   s.questions=JSON.parse(JSON.stringify(data.questions));
  }else{
-  s={id:uid(),name:title,questions:JSON.parse(JSON.stringify(data.questions))};
+  s={
+   id:uid(),
+   name:title,
+   questions:JSON.parse(JSON.stringify(data.questions))
+  };
   data.sets.push(s);
   data.activeSetId=s.id;
  }
- saveData();render();
- alert("保存しました！");
+
+ data.activeSetId=s.id;
+ data.bag=[];
+ data.rounds=0;
+ current=null;
+ revealed=false;
+
+ saveData();
+ render();
+
+ alert("保存しました！出題できるようになりました。");
+ tab("quiz",document.querySelector(".nav button"));
 }
+
 function loadSet(id){
  const s=data.sets.find(x=>x.id===id);
  if(!s)return;
+
  data.activeSetId=id;
  data.questions=JSON.parse(JSON.stringify(s.questions||[]));
  data.bag=[];
  data.rounds=0;
- current=null;revealed=false;
- saveData();render();
+ current=null;
+ revealed=false;
+
+ document.getElementById("setTitle").value=s.name;
+
+ saveData();
+ render();
+
  if(innerWidth<=700)toggleSidebar(false);
+
  tab("quiz",document.querySelector(".nav button"));
 }
+
+function editSet(id){
+ const s=data.sets.find(x=>x.id===id);
+ if(!s)return;
+
+ data.activeSetId=id;
+ data.questions=JSON.parse(JSON.stringify(s.questions||[]));
+
+ document.getElementById("setTitle").value=s.name;
+
+ saveData();
+ render();
+
+ tab("manage",document.querySelectorAll(".nav button")[1]);
+}
+
 function newSet(){
  data.activeSetId=null;
  data.questions=[];
  data.bag=[];
  data.rounds=0;
- current=null;revealed=false;
- saveData();render();
+ current=null;
+ revealed=false;
+
  document.getElementById("setTitle").value="";
+ document.getElementById("qInput").value="";
+ document.getElementById("aInput").value="";
+
+ saveData();
+ render();
+
  if(innerWidth<=700)toggleSidebar(false);
+
  tab("manage",document.querySelectorAll(".nav button")[1]);
  document.getElementById("qInput").focus();
 }
+
 function generateCode(){
- const payload={name:activeSet()?.name||"問題セット",questions:data.questions};
- document.getElementById("codeOutput").value="QRM3-"+btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+ const obj={
+  name:document.getElementById("setTitle").value||"問題セット",
+  questions:data.questions
+ };
+
+ document.getElementById("codeOutput").value=
+ "QRM3-"+btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
 }
+
 function copyCode(){
  const v=document.getElementById("codeOutput").value;
  if(!v)return alert("先にコードを作成してください");
- navigator.clipboard.writeText(v).then(()=>alert("コピーしました")).catch(()=>alert("コピーできませんでした"));
+
+ navigator.clipboard.writeText(v)
+ .then(()=>alert("コピーしました"))
+ .catch(()=>alert("コピーできませんでした"));
 }
+
 async function pasteCode(){
  try{
   document.getElementById("codeInput").value=await navigator.clipboard.readText();
  }catch(e){
-  alert("貼り付けを許可してください。入力欄を長押しして貼り付けてもOKです。");
+  alert("貼り付けを許可してください。入力欄を長押しして貼り付けてもOKです");
  }
 }
+
 function importCode(replace){
  try{
   let raw=document.getElementById("codeInput").value.trim();
   raw=raw.replace(/^QRM[23]-/,"");
+
   const obj=JSON.parse(decodeURIComponent(escape(atob(raw))));
   if(!Array.isArray(obj.questions))throw new Error();
-  const qs=obj.questions.map(q=>({id:uid(),q:q.q,a:q.a}));
+
+  const qs=obj.questions.map(q=>({
+   id:uid(),
+   q:q.q,
+   a:q.a
+  }));
+
   if(replace)data.questions=qs;
   else data.questions.push(...qs);
-  data.bag=[];current=null;revealed=false;data.rounds=0;
+
   data.activeSetId=null;
-  saveData();render();
-  alert("読み込みました！");
- }catch(e){alert("コードが正しくありません");}
+  data.bag=[];
+  data.rounds=0;
+  current=null;
+  revealed=false;
+
+  document.getElementById("setTitle").value=obj.name||"";
+
+  saveData();
+  render();
+  tab("manage",document.querySelectorAll(".nav button")[1]);
+
+  alert("制作内容に読み込みました。出題するにはセットとして保存してください。");
+ }catch(e){
+  alert("コードが正しくありません");
+ }
 }
-render();
+
+document.addEventListener("keydown",function(e){
+  if(e.target.matches("input,textarea"))return;
+
+  if(e.key==="ArrowRight"){
+    e.preventDefault();
+    nextQuestion();
+  }
+
+  if(e.key==="Enter"){
+    e.preventDefault();
+    toggleAnswer();
+  }
+});
+ render();
 </script>
 </body>
 </html>
