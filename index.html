@@ -50,7 +50,7 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
  header h1{font-size:18px}
 }
 </style>
-<script src="./transfer.js?v=1"></script></head>
+<script src="./excel-import.js?v=1"></script><script src="./transfer.js?v=1"></script></head>
 <body>
 
 <header>
@@ -102,6 +102,15 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 </div>
 
 <hr>
+<section aria-labelledby="excelImportTitle" style="background:#f3f4ff;padding:15px;border-radius:14px;margin-bottom:18px">
+<h3 id="excelImportTitle" style="margin-top:0">Excelから一括追加</h3>
+<p class="muted">左列に問題、右列に答えを入力し、2列をまとめてコピーして下の欄に貼り付けてください。貼り付けると全行が下の問題一覧へ追加されます。最後にセットを「保存」してください。セル内の改行にも対応しています。</p>
+<label style="display:flex;align-items:center;gap:8px;margin:10px 0"><input id="excelHeader" type="checkbox" style="width:auto">先頭行を見出しとして除く</label>
+<label for="excelPaste">問題と答えの2列</label>
+<textarea id="excelPaste" placeholder="Excelの2列をここに貼り付け" spellcheck="false" style="min-height:120px"></textarea>
+<button type="button" class="secondary" onclick="addExcelQuestions()">入力内容を一括追加</button>
+<p id="excelStatus" class="muted" role="status" aria-live="polite"></p>
+</section>
 <div class="row">
 <div>
 <label>問題</label>
@@ -517,11 +526,13 @@ function toggleSidebar(){
  document.getElementById("sidebar").classList.toggle("hidden");
 }
 
+function resetExcelImport(){document.getElementById("excelPaste").value="";document.getElementById("excelStatus").textContent="";}
 function newSet(){
  if(isEditing)return;
  editingId=null;
  draft=[];
  isEditing=true;
+ resetExcelImport();
  document.getElementById("editorTitle").textContent="新しい問題セット";
  document.getElementById("setName").value="";
  updateSaveButtons();
@@ -543,6 +554,7 @@ function editSet(id){
  editingId=id;
  draft=setQuestions(s).map(q=>getQ(q));
  isEditing=true;
+ resetExcelImport();
  document.getElementById("editorTitle").textContent="セット編集";
  document.getElementById("setName").value=s.name;
  updateSaveButtons();
@@ -607,6 +619,21 @@ function renderDraft(){
  });
 }
 
+function addExcelQuestions(){
+ if(!isEditing)return;
+ const input=document.getElementById("excelPaste"),status=document.getElementById("excelStatus");
+ try{
+  const items=window.ExcelQuestions.parse(input.value,{skipHeader:document.getElementById("excelHeader").checked});
+  if(draft.length+items.length>10000)throw Error("セットは合計10,000問までです。");
+  draft.push(...items.map(item=>({id:uid(),q:item.q,a:item.a})));
+  renderDraft();input.value="";status.textContent=items.length+"問を追加しました。内容を確認し、セットを保存してください。";
+ }catch(error){status.textContent=error.message+" 問題一覧は変更していません。";}
+}
+document.getElementById("excelPaste").addEventListener("paste",event=>{
+ if(!isEditing)return;
+ const text=event.clipboardData?.getData("text/plain");if(!text)return;
+ event.preventDefault();document.getElementById("excelPaste").value=text;addExcelQuestions();
+});
 function addQuestion(){
  const q=document.getElementById("questionInput").value.trim();
  const a=document.getElementById("answerInput").value.trim();
@@ -915,4 +942,5 @@ window.QRMTransfer.attach({
 </script>
 </body>
 </html>
+
 
