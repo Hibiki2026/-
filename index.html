@@ -50,7 +50,7 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
  header h1{font-size:18px}
 }
 </style>
-<script src="./excel-import.js?v=1"></script><script src="./transfer.js?v=1"></script></head>
+<script src="./excel-import.js?v=2"></script><script src="./transfer.js?v=2"></script></head>
 <body>
 
 <header>
@@ -61,7 +61,7 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 <div class="layout">
 <aside class="sidebar" id="sidebar">
 <h3>📚 保存済みセット</h3>
-<div id="setlist"></div>
+<div id="setlist"></div><p id="localSaveStatus" class="muted" role="status"></p>
 <hr>
 <button onclick="newSet()" style="width:100%">＋ 新しいセットを作る</button>
 <button class="secondary" onclick="showManage()" style="width:100%;margin-top:8px">セット管理</button>
@@ -190,15 +190,17 @@ let currentBag=[];
 let currentRound=0;
 let reviewMode=false;
 let lastComment="";
+let initializing=true,storageBlocked=false,lastSaved="";
 
 function loadData(){
- const raw=localStorage.getItem(STORAGE_KEY);
+ let raw;try{raw=localStorage.getItem(STORAGE_KEY);}catch{storageBlocked=true;data={questions:[],sets:[],activeSetId:null,bag:[],rounds:0};alert("このブラウザでは端末保存が使えません。クラウド保存を利用してください。");return;}
  if(!raw){
   data={questions:[],sets:[],activeSetId:null,bag:[],rounds:0};
   return;
  }
  try{
   data=JSON.parse(raw);
+  lastSaved=raw;
   if(!data||typeof data!=="object")throw new Error();
   if(!Array.isArray(data.questions))data.questions=[];
   if(!Array.isArray(data.sets))data.sets=[];
@@ -210,23 +212,23 @@ function loadData(){
    if(!Array.isArray(s.mustIds))s.mustIds=[];
   });
  }catch(e){
-  alert("保存データが読み込めませんでした。元データは消さずに残しています。");
+  storageBlocked=true;
+  alert("保存データが読み込めませんでした。元データは消さずに残しています。バックアップまたはクラウドから復元してください。");
   data={questions:[],sets:[],activeSetId:null,bag:[],rounds:0};
  }
 }
 
+function studyState(){return {currentSetId,currentQuestionId:currentQuestion?.id||null,currentBag:[...currentBag],currentRound,answerShown,reviewMode,lastComment};}
 function saveData(){
+ if(initializing)return true;
+ data.studySession=studyState();
+ let ok=false;
  try{
-  const old=localStorage.getItem(STORAGE_KEY);
-  if(old&&!localStorage.getItem(BACKUP_KEY)){
-   localStorage.setItem(BACKUP_KEY,old);
-  }
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
-  window.QRMTransfer?.changed();
- }catch(e){
-  alert("保存できませんでした。ブラウザの保存容量を確認してください。");
- }
+  if(!storageBlocked){const value=JSON.stringify(data);if(value!==lastSaved){const old=localStorage.getItem(STORAGE_KEY);if(old&&!localStorage.getItem(BACKUP_KEY))localStorage.setItem(BACKUP_KEY,old);localStorage.setItem(STORAGE_KEY,value);lastSaved=value;}ok=true;}
+ }catch(e){document.getElementById("localSaveStatus").textContent="端末に保存できません。クラウド保存またはバックアップを使ってください。";}
+ window.QRMTransfer?.changed();return ok;
 }
+function leaveEditor(){if(!isEditing)return true;if(!confirm("編集中の内容を破棄して移動しますか？"))return false;cancelEdit();return true;}
 
 function uid(){
  return Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -287,6 +289,8 @@ function renderSets(){
 }
 
 function selectSet(id){
+ if(!leaveEditor())return;
+ if(String(currentSetId)===String(id)){hideManage();hideChecked();return;}
  currentSetId=id;
  data.activeSetId=id;
  currentQuestion=null;
@@ -302,7 +306,7 @@ function selectSet(id){
 }
 
 function renderQuiz(){
- window.QRMTransfer?.changed();
+ saveData();
  const s=getSet(currentSetId);
  const qs=setQuestions(s);
  const total=qs.length;
@@ -437,13 +441,13 @@ function nextQuestion(){
 }
 
 function toggleAnswer(){
- if(!currentQuestion)return;
+ if(isEditing||!currentQuestion)return;
  answerShown=!answerShown;
  renderQuiz();
 }
 
 function toggleCheck(){
- if(!currentQuestion)return;
+ if(isEditing||!currentQuestion)return;
  const s=getSet(currentSetId);
  if(!s)return;
  if(!Array.isArray(s.checkedIds))s.checkedIds=[];
@@ -458,7 +462,7 @@ function toggleCheck(){
 }
 
 function toggleMust(){
- if(!currentQuestion)return;
+ if(isEditing||!currentQuestion)return;
  const s=getSet(currentSetId);
  if(!s)return;
  if(!Array.isArray(s.mustIds))s.mustIds=[];
@@ -473,6 +477,7 @@ function toggleMust(){
 }
 
 function showChecked(){
+ if(isEditing)return;
  const s=getSet(currentSetId);
  if(!s){alert("先にセットを選んでください");return}
  const checkedIds=Array.isArray(s.checkedIds)?s.checkedIds:[];
@@ -512,7 +517,7 @@ function hideChecked(){
 }
 
 function resetSet(){
- if(!currentSetId)return;
+ if(isEditing||!currentSetId)return;
  currentQuestion=null;
  answerShown=false;
  currentBag=[];
@@ -543,6 +548,7 @@ function newSet(){
 }
 
 function editSet(id){
+ if(!leaveEditor())return;
  const pw=prompt("編集パスワードを入力してください");
  if(pw!=="Hibiki"){
   if(pw!==null)alert("パスワードが違います");
@@ -678,8 +684,8 @@ function saveSet(){
  });
 
  s.questionIds=newQs.map(q=>q.id);
- s.questions=newQs;
- s.items=newQs;
+ delete s.questions;
+ delete s.items;
 
  const validIds=newQs.map(q=>String(q.id));
  s.checkedIds=s.checkedIds.filter(id=>validIds.includes(String(id)));
@@ -696,7 +702,7 @@ function saveSet(){
  cancelEdit(false);
  saveData();
  render();
- alert(wasUpdating?"更新しました！":"保存しました！");
+ alert((wasUpdating?"更新しました！":"保存しました！")+(storageBlocked?" 端末保存は使えません。クラウド保存を確認してください。":""));
 }
 
 function cancelEdit(){
@@ -708,6 +714,7 @@ function cancelEdit(){
 }
 
 function showManage(){
+ if(!leaveEditor())return;
  document.getElementById("manage").classList.remove("hidden");
  document.getElementById("editor").classList.add("hidden");
  renderManage();
@@ -800,13 +807,14 @@ function sharePayloadForSets(selectedIds){
 function renderShareSets(){
  const el=document.getElementById("shareSetList");
  if(!el)return;
+ const selected=new Set([...el.querySelectorAll(".shareSetCheck:checked")].map(cb=>cb.value));
  el.innerHTML="";
  if(!data.sets.length){el.innerHTML='<p class="muted">共有できるセットがまだありません。</p>';return;}
  data.sets.forEach(s=>{
   const label=document.createElement("label");
   label.style.cssText="display:flex;align-items:center;gap:10px;background:#f3f4ff;padding:10px;border-radius:10px;margin:7px 0;cursor:pointer";
   const cb=document.createElement("input");
-  cb.type="checkbox";cb.className="shareSetCheck";cb.value=String(s.id);cb.style.cssText="width:22px;height:22px;flex:0 0 auto";
+  cb.type="checkbox";cb.className="shareSetCheck";cb.value=String(s.id);cb.checked=selected.has(String(s.id));cb.style.cssText="width:22px;height:22px;flex:0 0 auto";
   const txt=document.createElement("span");txt.textContent=(s.name||"名前なし")+"（"+setQuestions(s).length+"問）";
   label.append(cb,txt);el.append(label);
  });
@@ -828,22 +836,20 @@ async function copyShareLink(){
  catch(e){el.focus();el.select();document.execCommand("copy");alert("コピーしました（コピーできない場合は選択してコピーしてください）");}
 }
 function importPayloadSets(obj,notify=true){
- const sets=obj.sets||[];
- if(!Array.isArray(sets))throw new Error("sets is not an array");
- let added=0;
- sets.forEach(s=>{
-  const qs=s.questions||s.items||[];
-  const newSet={id:uid(),name:s.name||"読み込みセット",questionIds:[],questions:[],checkedIds:[],mustIds:[]};
-  qs.forEach(q=>{
-   const nq={id:uid(),q:q.q??q.question??"",a:q.a??q.answer??""};
-   data.questions.push(nq);newSet.questionIds.push(nq.id);newSet.questions.push(nq);
-  });
-  (s.checkedQuestions||[]).forEach(c=>{const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);if(found)newSet.checkedIds.push(String(found.id));});
-  (s.mustQuestions||[]).forEach(c=>{const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);if(found)newSet.mustIds.push(String(found.id));});
-  data.sets.push(newSet);added++;
-  currentSetId=newSet.id;
-  data.activeSetId=newSet.id;
- });
+ if(!leaveEditor())return 0;
+ if(!obj||obj.type!=="QRM3"||!Array.isArray(obj.sets)||!obj.sets.length)throw Error("セット形式が不正です");
+ if(data.sets.length+obj.sets.length>500)throw Error("セット数の上限です");
+ const stagedQuestions=[],stagedSets=[];
+ for(const s of obj.sets){
+  if(!s||typeof s.name!=="string"||s.name.length>1000)throw Error("セット名が不正です");
+  const qs=s.questions||s.items;if(!Array.isArray(qs)||!qs.length||qs.length>10000)throw Error("問題形式が不正です");
+  const next={id:uid(),name:s.name||"読み込みセット",questionIds:[],checkedIds:[],mustIds:[]},items=[];
+  for(const q of qs){const text=q?.q??q?.question,answer=q?.a??q?.answer;if(typeof text!=="string"||typeof answer!=="string"||!text.trim()||!answer.trim()||text.length>20000||answer.length>20000)throw Error("問題・答えが不正です");const nq={id:uid(),q:text,a:answer};items.push(nq);stagedQuestions.push(nq);next.questionIds.push(nq.id);}
+  for(const [field,source]of [["checkedIds","checkedQuestions"],["mustIds","mustQuestions"]]){if(s[source]!==undefined&&!Array.isArray(s[source]))throw Error("チェック形式が不正です");next[field]=items.filter(q=>(s[source]||[]).some(c=>c&&q.q===c.q&&q.a===c.a)).map(q=>String(q.id));}
+  stagedSets.push(next);
+ }
+ if(data.questions.length+stagedQuestions.length>10000)throw Error("問題数の上限です");
+ data.questions.push(...stagedQuestions);data.sets.push(...stagedSets);const added=stagedSets.length;currentSetId=stagedSets.at(-1).id;data.activeSetId=currentSetId;
  if(added){currentQuestion=null;answerShown=false;currentBag=[];currentRound=0;reviewMode=false;lastComment="";saveData();render();}
  if(notify&&added)alert(added+"セット読み込みました！");
  return added;
@@ -892,6 +898,7 @@ function importCode(){
 }
 
 document.getElementById("questionInput").addEventListener("keydown",e=>{
+ if(e.isComposing||e.keyCode===229)return;
  if(e.key==="Enter"&&!e.shiftKey){
   e.preventDefault();
   document.getElementById("answerInput").focus();
@@ -899,6 +906,7 @@ document.getElementById("questionInput").addEventListener("keydown",e=>{
 });
 
 document.getElementById("answerInput").addEventListener("keydown",e=>{
+ if(e.isComposing||e.keyCode===229)return;
  if(e.key==="Enter"&&!e.shiftKey){
   e.preventDefault();
   addQuestion();
@@ -906,8 +914,8 @@ document.getElementById("answerInput").addEventListener("keydown",e=>{
 });
 
 document.addEventListener("keydown",e=>{
- if(window.QRMTransfer?.busy)return;
- if(e.target.matches("input,textarea"))return;
+ if(window.QRMTransfer?.busy||e.isComposing||e.keyCode===229||e.repeat)return;
+ if(e.target.closest("input,textarea,select,button,a,[contenteditable]"))return;
  if(e.key==="ArrowRight"){
   e.preventDefault();
   nextQuestion();
@@ -922,9 +930,18 @@ document.addEventListener("keydown",e=>{
 
 loadData();
 if(data.activeSetId&&getSet(data.activeSetId))currentSetId=data.activeSetId;
+const storedSession=data.studySession;
+if(storedSession&&String(storedSession.currentSetId)===String(currentSetId)){
+ const qs=setQuestions(getSet(currentSetId)),ids=new Set(qs.map(q=>String(q.id)));
+ currentQuestion=qs.find(q=>String(q.id)===String(storedSession.currentQuestionId))||null;
+ currentBag=Array.isArray(storedSession.currentBag)?storedSession.currentBag.map(String).filter(id=>ids.has(id)):[];
+ currentRound=Number.isSafeInteger(storedSession.currentRound)?Math.max(0,storedSession.currentRound):0;
+ answerShown=!!storedSession.answerShown;reviewMode=!!storedSession.reviewMode;lastComment=typeof storedSession.lastComment==="string"?storedSession.lastComment:"";
+}
 render();
+initializing=false;
 importShareFromUrl();
-window.QRMTransfer.attach({
+window.QRMTransfer?.attach({
  editing:()=>isEditing,
  snapshot:()=>{
   const questionMap=new Map();const sets=data.sets.map(s=>{const qs=setQuestions(s).map(getQ);qs.forEach(q=>questionMap.set(String(q.id),q));return {id:s.id,name:s.name||"名前なし",questionIds:qs.map(q=>q.id),checkedIds:s.checkedIds||[],mustIds:s.mustIds||[]};});
@@ -933,7 +950,8 @@ window.QRMTransfer.attach({
  restore:snapshot=>{
   // Write the backup and replacement before changing in-memory state.
   const old=JSON.stringify(data);localStorage.setItem("question_random_mechanism_before_cloud_restore",old);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(snapshot.data));
+  snapshot.data.studySession=snapshot.session;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(snapshot.data));storageBlocked=false;lastSaved=JSON.stringify(snapshot.data);
   data=snapshot.data;currentSetId=snapshot.session.currentSetId;currentQuestion=data.questions.find(q=>String(q.id)===snapshot.session.currentQuestionId)||null;
   currentBag=snapshot.session.currentBag;currentRound=snapshot.session.currentRound;answerShown=snapshot.session.answerShown;reviewMode=snapshot.session.reviewMode;lastComment=snapshot.session.lastComment;
   isEditing=false;editingId=null;draft=[];document.getElementById("editor").classList.add("hidden");hideManage();hideChecked();render();
@@ -942,5 +960,6 @@ window.QRMTransfer.attach({
 </script>
 </body>
 </html>
+
 
 
