@@ -50,7 +50,7 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
  header h1{font-size:18px}
 }
 </style>
-</head>
+<script src="./transfer.js?v=1"></script></head>
 <body>
 
 <header>
@@ -144,8 +144,16 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 <button class="secondary" onclick="copyShareLink()" style="width:100%;margin-top:8px">共有リンクをコピー</button>
 </section>
 
+<section class="panel" id="cloudTransfer">
+<h3>引き継ぎコードで保存・復元</h3>
+<p class="muted">英字と数字を含む12〜64文字の専用コードを自分で設定してください。同じコードを別ブラウザで入力すると、問題セット・チェック・必ず出る設定・学習途中の状態を引き継げます。</p>
+<label for="cloudCode">引き継ぎコード</label><input id="cloudCode" type="password" autocomplete="off" minlength="12" maxlength="64" placeholder="英字＋数字で12文字以上">
+<div class="row" style="margin-top:8px"><button id="cloudCreate" disabled>コードを登録して保存</button><button id="cloudLoad" class="secondary" disabled>コードで引き継ぐ</button><button id="cloudSave" class="secondary" disabled>今すぐクラウド保存</button></div>
+<p id="cloudStatus" class="muted" role="status" aria-live="polite">連携情報を確認中…</p>
+<p class="muted">コードを知る人は記録を読み書きできます。他のパスワードを使わず、人に教えないでください。別ブラウザで使い始めるときは「コードで引き継ぐ」で最新記録を取得してください。「クラウド保存済み」と表示されてから閉じてください。</p>
+</section>
 <section class="panel">
-<h3>🔄 引き継ぎ</h3>
+<h3>データコードのバックアップ（従来方式）</h3>
 <textarea id="transfer" placeholder="引き継ぎコード"></textarea>
 <div class="row" style="margin-top:8px">
 <button onclick="exportCode()">コードを作る</button>
@@ -205,6 +213,7 @@ function saveData(){
    localStorage.setItem(BACKUP_KEY,old);
   }
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  window.QRMTransfer?.changed();
  }catch(e){
   alert("保存できませんでした。ブラウザの保存容量を確認してください。");
  }
@@ -284,6 +293,7 @@ function selectSet(id){
 }
 
 function renderQuiz(){
+ window.QRMTransfer?.changed();
  const s=getSet(currentSetId);
  const qs=setQuestions(s);
  const total=qs.length;
@@ -869,6 +879,7 @@ document.getElementById("answerInput").addEventListener("keydown",e=>{
 });
 
 document.addEventListener("keydown",e=>{
+ if(window.QRMTransfer?.busy)return;
  if(e.target.matches("input,textarea"))return;
  if(e.key==="ArrowRight"){
   e.preventDefault();
@@ -886,6 +897,22 @@ loadData();
 if(data.activeSetId&&getSet(data.activeSetId))currentSetId=data.activeSetId;
 render();
 importShareFromUrl();
+window.QRMTransfer.attach({
+ editing:()=>isEditing,
+ snapshot:()=>{
+  const questionMap=new Map();const sets=data.sets.map(s=>{const qs=setQuestions(s).map(getQ);qs.forEach(q=>questionMap.set(String(q.id),q));return {id:s.id,name:s.name||"名前なし",questionIds:qs.map(q=>q.id),checkedIds:s.checkedIds||[],mustIds:s.mustIds||[]};});
+  return {version:1,data:{questions:[...questionMap.values()],sets,activeSetId:currentSetId},session:{currentSetId,currentQuestionId:currentQuestion?.id||null,currentBag:[...currentBag],currentRound,answerShown,reviewMode,lastComment}};
+ },
+ restore:snapshot=>{
+  // Write the backup and replacement before changing in-memory state.
+  const old=JSON.stringify(data);localStorage.setItem("question_random_mechanism_before_cloud_restore",old);
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(snapshot.data));
+  data=snapshot.data;currentSetId=snapshot.session.currentSetId;currentQuestion=data.questions.find(q=>String(q.id)===snapshot.session.currentQuestionId)||null;
+  currentBag=snapshot.session.currentBag;currentRound=snapshot.session.currentRound;answerShown=snapshot.session.answerShown;reviewMode=snapshot.session.reviewMode;lastComment=snapshot.session.lastComment;
+  isEditing=false;editingId=null;draft=[];document.getElementById("editor").classList.add("hidden");hideManage();hideChecked();render();
+ }
+});
 </script>
 </body>
 </html>
+
