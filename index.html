@@ -86,7 +86,18 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 <button class="secondary" onclick="resetSet()">元通りにする</button>
 <button class="secondary" onclick="showChecked()">チェック一覧</button>
 </div>
-<p class="muted">Enter：開始・答え表示・次の問題 ／ →：次の問題</p>
+
+<div class="row" style="margin-top:16px;max-width:520px;margin-left:auto;margin-right:auto;align-items:center">
+ <div style="flex:1.2">
+  <label for="startQuestionNumber" class="muted">開始する問題番号</label>
+  <input id="startQuestionNumber" type="number" min="1" step="1" value="1" placeholder="例：15">
+ </div>
+ <div style="flex:1">
+  <button class="secondary" onclick="startFromQuestionNumber()" style="width:100%;margin-top:22px">この番号から始める</button>
+ </div>
+</div>
+<p class="muted">指定した番号から順番に出題します。最後まで進むと、次の周回は1問目から始まります。</p>
+<p class="muted">Enter：開始・答え表示・次の問題 ／ →：次の問題 ／ ←：前の問題</p>
 </section>
 
 <section class="panel hidden" id="checkedPanel">
@@ -176,6 +187,7 @@ let questionMode="random";
 let questionHistory=[];
 let historyIndex=-1;
 let currentRound=0;
+let orderedStartOffset=0;
 let reviewMode=false;
 let lastComment="";
 
@@ -282,6 +294,7 @@ function selectSet(id){
  questionHistory=[];
  historyIndex=-1;
  currentRound=0;
+ orderedStartOffset=0;
  reviewMode=false;
  lastComment="";
  saveData();
@@ -294,7 +307,7 @@ function renderQuiz(){
  const s=getSet(currentSetId);
  const qs=setQuestions(s);
  const total=qs.length;
- const progress=currentQuestion&&total?(questionMode==="ordered"?historyIndex+1:questionHistory.length):0;
+ const progress=currentQuestion&&total?(questionMode==="ordered"?orderedStartOffset+historyIndex+1:questionHistory.length):0;
 
  document.getElementById("progress").textContent=reviewMode
   ?"チェック問題"
@@ -398,7 +411,7 @@ function shuffle(arr){
 
 function toggleQuestionMode(){
  questionMode=questionMode==="random"?"ordered":"random";
- currentQuestion=null;answerShown=false;currentBag=[];questionHistory=[];historyIndex=-1;currentRound=0;reviewMode=false;lastComment="";
+ currentQuestion=null;answerShown=false;currentBag=[];questionHistory=[];historyIndex=-1;currentRound=0;orderedStartOffset=0;reviewMode=false;lastComment="";
  renderQuiz();
 }
 
@@ -414,6 +427,32 @@ function previousQuestion(){
  showHistoryQuestion(historyIndex-1);
 }
 
+function startFromQuestionNumber(){
+ if(isEditing)return;
+ const s=getSet(currentSetId);
+ if(!s){alert("先に保存済みセットを選んでください");return;}
+ const qs=setQuestions(s);
+ if(!qs.length){alert("このセットには問題がありません");return;}
+ const input=document.getElementById("startQuestionNumber");
+ const number=Number(input.value);
+ if(!Number.isInteger(number)||number<1||number>qs.length){
+  alert(`1〜${qs.length}の整数を入力してください`);
+  input.focus();
+  return;
+ }
+ questionMode="ordered";
+ currentQuestion=null;
+ answerShown=false;
+ currentBag=qs.slice(number-1).map(q=>String(q.id));
+ questionHistory=[];
+ historyIndex=-1;
+ currentRound=1;
+ orderedStartOffset=number-1;
+ reviewMode=false;
+ lastComment=getRoundComment(1);
+ nextQuestion();
+}
+
 function nextQuestion(){
  if(isEditing)return;
  const s=getSet(currentSetId);
@@ -424,6 +463,7 @@ function nextQuestion(){
  // 一度戻ったあとなら、既に表示した履歴を先へ進む
  if(historyIndex<questionHistory.length-1){showHistoryQuestion(historyIndex+1);return;}
  if(!currentBag.length){
+  orderedStartOffset=0;
   currentBag=qs.map(q=>String(q.id));
   if(questionMode==="random")shuffle(currentBag);
   currentRound++;
@@ -528,6 +568,7 @@ function resetSet(){
  questionHistory=[];
  historyIndex=-1;
  currentRound=0;
+ orderedStartOffset=0;
  reviewMode=false;
  lastComment="";
  renderQuiz();
@@ -685,6 +726,7 @@ function saveSet(){
  questionHistory=[];
  historyIndex=-1;
  currentRound=0;
+ orderedStartOffset=0;
  reviewMode=false;
  lastComment="";
 
@@ -792,6 +834,7 @@ function sharePayloadForSets(selectedIds){
   mustQuestions:setQuestions(s).filter(q=>(s.mustIds||[]).map(String).includes(String(q.id))).map(q=>({q:q.q,a:q.a}))
  }))};
 }
+
 function renderShareSets(){
  const el=document.getElementById("shareSetList");
  if(!el)return;
@@ -806,7 +849,11 @@ function renderShareSets(){
   label.append(cb,txt);el.append(label);
  });
 }
-function selectAllShareSets(checked){document.querySelectorAll(".shareSetCheck").forEach(cb=>cb.checked=checked);}
+
+function selectAllShareSets(checked){
+ document.querySelectorAll(".shareSetCheck").forEach(cb=>cb.checked=checked);
+}
+
 function createShareLink(){
  const ids=[...document.querySelectorAll(".shareSetCheck:checked")].map(cb=>cb.value);
  if(!ids.length){alert("共有するセットを選んでください");return;}
@@ -816,12 +863,14 @@ function createShareLink(){
  document.getElementById("shareLink").value=link;
  alert("共有リンクを作りました！リンクを相手に送ってください。");
 }
+
 async function copyShareLink(){
  const el=document.getElementById("shareLink");
  if(!el.value){createShareLink();if(!el.value)return;}
  try{await navigator.clipboard.writeText(el.value);alert("共有リンクをコピーしました！");}
  catch(e){el.focus();el.select();document.execCommand("copy");alert("コピーしました（コピーできない場合は選択してコピーしてください）");}
 }
+
 function importPayloadSets(obj,notify=true){
  const sets=obj.sets||[];
  if(!Array.isArray(sets))throw new Error("sets is not an array");
@@ -843,6 +892,7 @@ function importPayloadSets(obj,notify=true){
  if(notify&&added)alert(added+"セット読み込みました！");
  return added;
 }
+
 function importShareFromUrl(){
  const hash=location.hash;
  if(!hash.startsWith("#QRM3SHARE="))return;
