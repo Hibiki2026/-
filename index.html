@@ -50,7 +50,7 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
  header h1{font-size:18px}
 }
 </style>
-<script src="./excel-import.js?v=2"></script><script src="./transfer.js?v=2"></script></head>
+</head>
 <body>
 
 <header>
@@ -61,7 +61,7 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 <div class="layout">
 <aside class="sidebar" id="sidebar">
 <h3>📚 保存済みセット</h3>
-<div id="setlist"></div><p id="localSaveStatus" class="muted" role="status"></p>
+<div id="setlist"></div>
 <hr>
 <button onclick="newSet()" style="width:100%">＋ 新しいセットを作る</button>
 <button class="secondary" onclick="showManage()" style="width:100%;margin-top:8px">セット管理</button>
@@ -78,6 +78,8 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 
 <div class="quizbuttons">
 <button id="nextBtn" onclick="nextQuestion()">始める</button>
+<button id="modeBtn" class="secondary" onclick="toggleQuestionMode()">出題順：ランダム</button>
+<button id="prevBtn" class="secondary" onclick="previousQuestion()" disabled>← 前の問題</button>
 <button id="answerBtn" class="secondary" onclick="toggleAnswer()">答えを見る</button>
 <button id="checkBtn" class="secondary" onclick="toggleCheck()">☐ チェック</button>
 <button id="mustBtn" class="secondary" onclick="toggleMust()">☆ 必ず出る</button>
@@ -102,15 +104,6 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 </div>
 
 <hr>
-<section aria-labelledby="excelImportTitle" style="background:#f3f4ff;padding:15px;border-radius:14px;margin-bottom:18px">
-<h3 id="excelImportTitle" style="margin-top:0">Excelから一括追加</h3>
-<p class="muted">左列に問題、右列に答えを入力し、2列をまとめてコピーして下の欄に貼り付けてください。貼り付けると全行が下の問題一覧へ追加されます。最後にセットを「保存」してください。セル内の改行にも対応しています。</p>
-<label style="display:flex;align-items:center;gap:8px;margin:10px 0"><input id="excelHeader" type="checkbox" style="width:auto">先頭行を見出しとして除く</label>
-<label for="excelPaste">問題と答えの2列</label>
-<textarea id="excelPaste" placeholder="Excelの2列をここに貼り付け" spellcheck="false" style="min-height:120px"></textarea>
-<button type="button" class="secondary" onclick="addExcelQuestions()">入力内容を一括追加</button>
-<p id="excelStatus" class="muted" role="status" aria-live="polite"></p>
-</section>
 <div class="row">
 <div>
 <label>問題</label>
@@ -153,16 +146,8 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 <button class="secondary" onclick="copyShareLink()" style="width:100%;margin-top:8px">共有リンクをコピー</button>
 </section>
 
-<section class="panel" id="cloudTransfer">
-<h3>引き継ぎコードで保存・復元</h3>
-<p class="muted">英字と数字を含む12〜64文字の専用コードを自分で設定してください。同じコードを別ブラウザで入力すると、問題セット・チェック・必ず出る設定・学習途中の状態を引き継げます。</p>
-<label for="cloudCode">引き継ぎコード</label><input id="cloudCode" type="password" autocomplete="off" minlength="12" maxlength="64" placeholder="英字＋数字で12文字以上">
-<div class="row" style="margin-top:8px"><button id="cloudCreate" disabled>コードを登録して保存</button><button id="cloudLoad" class="secondary" disabled>コードで引き継ぐ</button><button id="cloudSave" class="secondary" disabled>今すぐクラウド保存</button></div>
-<p id="cloudStatus" class="muted" role="status" aria-live="polite">連携情報を確認中…</p>
-<p class="muted">コードを知る人は記録を読み書きできます。他のパスワードを使わず、人に教えないでください。別ブラウザで使い始めるときは「コードで引き継ぐ」で最新記録を取得してください。「クラウド保存済み」と表示されてから閉じてください。</p>
-</section>
 <section class="panel">
-<h3>データコードのバックアップ（従来方式）</h3>
+<h3>🔄 引き継ぎ</h3>
 <textarea id="transfer" placeholder="引き継ぎコード"></textarea>
 <div class="row" style="margin-top:8px">
 <button onclick="exportCode()">コードを作る</button>
@@ -187,20 +172,21 @@ let draft=[];
 let editingId=null;
 let isEditing=false;
 let currentBag=[];
+let questionMode="random";
+let questionHistory=[];
+let historyIndex=-1;
 let currentRound=0;
 let reviewMode=false;
 let lastComment="";
-let initializing=true,storageBlocked=false,lastSaved="";
 
 function loadData(){
- let raw;try{raw=localStorage.getItem(STORAGE_KEY);}catch{storageBlocked=true;data={questions:[],sets:[],activeSetId:null,bag:[],rounds:0};alert("このブラウザでは端末保存が使えません。クラウド保存を利用してください。");return;}
+ const raw=localStorage.getItem(STORAGE_KEY);
  if(!raw){
   data={questions:[],sets:[],activeSetId:null,bag:[],rounds:0};
   return;
  }
  try{
   data=JSON.parse(raw);
-  lastSaved=raw;
   if(!data||typeof data!=="object")throw new Error();
   if(!Array.isArray(data.questions))data.questions=[];
   if(!Array.isArray(data.sets))data.sets=[];
@@ -212,23 +198,22 @@ function loadData(){
    if(!Array.isArray(s.mustIds))s.mustIds=[];
   });
  }catch(e){
-  storageBlocked=true;
-  alert("保存データが読み込めませんでした。元データは消さずに残しています。バックアップまたはクラウドから復元してください。");
+  alert("保存データが読み込めませんでした。元データは消さずに残しています。");
   data={questions:[],sets:[],activeSetId:null,bag:[],rounds:0};
  }
 }
 
-function studyState(){return {currentSetId,currentQuestionId:currentQuestion?.id||null,currentBag:[...currentBag],currentRound,answerShown,reviewMode,lastComment};}
 function saveData(){
- if(initializing)return true;
- data.studySession=studyState();
- let ok=false;
  try{
-  if(!storageBlocked){const value=JSON.stringify(data);if(value!==lastSaved){const old=localStorage.getItem(STORAGE_KEY);if(old&&!localStorage.getItem(BACKUP_KEY))localStorage.setItem(BACKUP_KEY,old);localStorage.setItem(STORAGE_KEY,value);lastSaved=value;}ok=true;}
- }catch(e){document.getElementById("localSaveStatus").textContent="端末に保存できません。クラウド保存またはバックアップを使ってください。";}
- window.QRMTransfer?.changed();return ok;
+  const old=localStorage.getItem(STORAGE_KEY);
+  if(old&&!localStorage.getItem(BACKUP_KEY)){
+   localStorage.setItem(BACKUP_KEY,old);
+  }
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+ }catch(e){
+  alert("保存できませんでした。ブラウザの保存容量を確認してください。");
+ }
 }
-function leaveEditor(){if(!isEditing)return true;if(!confirm("編集中の内容を破棄して移動しますか？"))return false;cancelEdit();return true;}
 
 function uid(){
  return Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -289,13 +274,13 @@ function renderSets(){
 }
 
 function selectSet(id){
- if(!leaveEditor())return;
- if(String(currentSetId)===String(id)){hideManage();hideChecked();return;}
  currentSetId=id;
  data.activeSetId=id;
  currentQuestion=null;
  answerShown=false;
  currentBag=[];
+ questionHistory=[];
+ historyIndex=-1;
  currentRound=0;
  reviewMode=false;
  lastComment="";
@@ -306,11 +291,10 @@ function selectSet(id){
 }
 
 function renderQuiz(){
- saveData();
  const s=getSet(currentSetId);
  const qs=setQuestions(s);
  const total=qs.length;
- const progress=currentQuestion&&total?total-currentBag.length:0;
+ const progress=currentQuestion&&total?(questionMode==="ordered"?historyIndex+1:questionHistory.length):0;
 
  document.getElementById("progress").textContent=reviewMode
   ?"チェック問題"
@@ -327,6 +311,8 @@ function renderQuiz(){
  document.getElementById("comment").textContent=lastComment;
 
  document.getElementById("nextBtn").textContent=currentQuestion?"次の問題":"始める";
+ document.getElementById("modeBtn").textContent="出題順："+(questionMode==="random"?"ランダム":"順番どおり");
+ document.getElementById("prevBtn").disabled=historyIndex<=0;
  document.getElementById("answerBtn").style.display=currentQuestion?"inline-block":"none";
  document.getElementById("answerBtn").textContent=answerShown?"答えを隠す":"答えを見る";
 
@@ -410,44 +396,63 @@ function shuffle(arr){
  return arr;
 }
 
+function toggleQuestionMode(){
+ questionMode=questionMode==="random"?"ordered":"random";
+ currentQuestion=null;answerShown=false;currentBag=[];questionHistory=[];historyIndex=-1;currentRound=0;reviewMode=false;lastComment="";
+ renderQuiz();
+}
+
+function showHistoryQuestion(index){
+ const s=getSet(currentSetId);if(!s)return;
+ const qs=setQuestions(s);const id=questionHistory[index];
+ currentQuestion=qs.find(q=>String(q.id)===String(id))||null;
+ historyIndex=index;answerShown=false;reviewMode=false;renderQuiz();
+}
+
+function previousQuestion(){
+ if(isEditing||historyIndex<=0)return;
+ showHistoryQuestion(historyIndex-1);
+}
+
 function nextQuestion(){
  if(isEditing)return;
  const s=getSet(currentSetId);
  if(!s){alert("先に保存済みセットを選んでください");return}
  const qs=setQuestions(s);
  if(!qs.length){alert("このセットには問題がありません");return}
-
  reviewMode=false;
-
+ // 一度戻ったあとなら、既に表示した履歴を先へ進む
+ if(historyIndex<questionHistory.length-1){showHistoryQuestion(historyIndex+1);return;}
  if(!currentBag.length){
-  currentBag=shuffle(qs.map(q=>String(q.id)));
+  currentBag=qs.map(q=>String(q.id));
+  if(questionMode==="random")shuffle(currentBag);
   currentRound++;
   lastComment=getRoundComment(currentRound);
+  questionHistory=[];historyIndex=-1;
  }
-
  let id;
- const mustIds=Array.isArray(s.mustIds)?s.mustIds.map(String):[];
- const mustIndex=currentBag.findIndex(x=>mustIds.includes(String(x)));
-
- if(mustIndex!==-1){
-  id=currentBag.splice(mustIndex,1)[0];
+ if(questionMode==="ordered"){
+  id=currentBag.shift();
  }else{
-  id=currentBag.pop();
+  const mustIds=Array.isArray(s.mustIds)?s.mustIds.map(String):[];
+  const mustIndex=currentBag.findIndex(x=>mustIds.includes(String(x)));
+  id=mustIndex!==-1?currentBag.splice(mustIndex,1)[0]:currentBag.pop();
  }
-
+ questionHistory.push(String(id));
+ historyIndex=questionHistory.length-1;
  currentQuestion=qs.find(q=>String(q.id)===String(id))||qs[0];
  answerShown=false;
  renderQuiz();
 }
 
 function toggleAnswer(){
- if(isEditing||!currentQuestion)return;
+ if(!currentQuestion)return;
  answerShown=!answerShown;
  renderQuiz();
 }
 
 function toggleCheck(){
- if(isEditing||!currentQuestion)return;
+ if(!currentQuestion)return;
  const s=getSet(currentSetId);
  if(!s)return;
  if(!Array.isArray(s.checkedIds))s.checkedIds=[];
@@ -462,7 +467,7 @@ function toggleCheck(){
 }
 
 function toggleMust(){
- if(isEditing||!currentQuestion)return;
+ if(!currentQuestion)return;
  const s=getSet(currentSetId);
  if(!s)return;
  if(!Array.isArray(s.mustIds))s.mustIds=[];
@@ -477,7 +482,6 @@ function toggleMust(){
 }
 
 function showChecked(){
- if(isEditing)return;
  const s=getSet(currentSetId);
  if(!s){alert("先にセットを選んでください");return}
  const checkedIds=Array.isArray(s.checkedIds)?s.checkedIds:[];
@@ -517,10 +521,12 @@ function hideChecked(){
 }
 
 function resetSet(){
- if(isEditing||!currentSetId)return;
+ if(!currentSetId)return;
  currentQuestion=null;
  answerShown=false;
  currentBag=[];
+ questionHistory=[];
+ historyIndex=-1;
  currentRound=0;
  reviewMode=false;
  lastComment="";
@@ -531,13 +537,11 @@ function toggleSidebar(){
  document.getElementById("sidebar").classList.toggle("hidden");
 }
 
-function resetExcelImport(){document.getElementById("excelPaste").value="";document.getElementById("excelStatus").textContent="";}
 function newSet(){
  if(isEditing)return;
  editingId=null;
  draft=[];
  isEditing=true;
- resetExcelImport();
  document.getElementById("editorTitle").textContent="新しい問題セット";
  document.getElementById("setName").value="";
  updateSaveButtons();
@@ -548,7 +552,6 @@ function newSet(){
 }
 
 function editSet(id){
- if(!leaveEditor())return;
  const pw=prompt("編集パスワードを入力してください");
  if(pw!=="Hibiki"){
   if(pw!==null)alert("パスワードが違います");
@@ -560,7 +563,6 @@ function editSet(id){
  editingId=id;
  draft=setQuestions(s).map(q=>getQ(q));
  isEditing=true;
- resetExcelImport();
  document.getElementById("editorTitle").textContent="セット編集";
  document.getElementById("setName").value=s.name;
  updateSaveButtons();
@@ -625,21 +627,6 @@ function renderDraft(){
  });
 }
 
-function addExcelQuestions(){
- if(!isEditing)return;
- const input=document.getElementById("excelPaste"),status=document.getElementById("excelStatus");
- try{
-  const items=window.ExcelQuestions.parse(input.value,{skipHeader:document.getElementById("excelHeader").checked});
-  if(draft.length+items.length>10000)throw Error("セットは合計10,000問までです。");
-  draft.push(...items.map(item=>({id:uid(),q:item.q,a:item.a})));
-  renderDraft();input.value="";status.textContent=items.length+"問を追加しました。内容を確認し、セットを保存してください。";
- }catch(error){status.textContent=error.message+" 問題一覧は変更していません。";}
-}
-document.getElementById("excelPaste").addEventListener("paste",event=>{
- if(!isEditing)return;
- const text=event.clipboardData?.getData("text/plain");if(!text)return;
- event.preventDefault();document.getElementById("excelPaste").value=text;addExcelQuestions();
-});
 function addQuestion(){
  const q=document.getElementById("questionInput").value.trim();
  const a=document.getElementById("answerInput").value.trim();
@@ -684,8 +671,8 @@ function saveSet(){
  });
 
  s.questionIds=newQs.map(q=>q.id);
- delete s.questions;
- delete s.items;
+ s.questions=newQs;
+ s.items=newQs;
 
  const validIds=newQs.map(q=>String(q.id));
  s.checkedIds=s.checkedIds.filter(id=>validIds.includes(String(id)));
@@ -695,6 +682,8 @@ function saveSet(){
  currentSetId=s.id;
  currentQuestion=null;
  currentBag=[];
+ questionHistory=[];
+ historyIndex=-1;
  currentRound=0;
  reviewMode=false;
  lastComment="";
@@ -702,7 +691,7 @@ function saveSet(){
  cancelEdit(false);
  saveData();
  render();
- alert((wasUpdating?"更新しました！":"保存しました！")+(storageBlocked?" 端末保存は使えません。クラウド保存を確認してください。":""));
+ alert(wasUpdating?"更新しました！":"保存しました！");
 }
 
 function cancelEdit(){
@@ -714,7 +703,6 @@ function cancelEdit(){
 }
 
 function showManage(){
- if(!leaveEditor())return;
  document.getElementById("manage").classList.remove("hidden");
  document.getElementById("editor").classList.add("hidden");
  renderManage();
@@ -807,14 +795,13 @@ function sharePayloadForSets(selectedIds){
 function renderShareSets(){
  const el=document.getElementById("shareSetList");
  if(!el)return;
- const selected=new Set([...el.querySelectorAll(".shareSetCheck:checked")].map(cb=>cb.value));
  el.innerHTML="";
  if(!data.sets.length){el.innerHTML='<p class="muted">共有できるセットがまだありません。</p>';return;}
  data.sets.forEach(s=>{
   const label=document.createElement("label");
   label.style.cssText="display:flex;align-items:center;gap:10px;background:#f3f4ff;padding:10px;border-radius:10px;margin:7px 0;cursor:pointer";
   const cb=document.createElement("input");
-  cb.type="checkbox";cb.className="shareSetCheck";cb.value=String(s.id);cb.checked=selected.has(String(s.id));cb.style.cssText="width:22px;height:22px;flex:0 0 auto";
+  cb.type="checkbox";cb.className="shareSetCheck";cb.value=String(s.id);cb.style.cssText="width:22px;height:22px;flex:0 0 auto";
   const txt=document.createElement("span");txt.textContent=(s.name||"名前なし")+"（"+setQuestions(s).length+"問）";
   label.append(cb,txt);el.append(label);
  });
@@ -836,21 +823,23 @@ async function copyShareLink(){
  catch(e){el.focus();el.select();document.execCommand("copy");alert("コピーしました（コピーできない場合は選択してコピーしてください）");}
 }
 function importPayloadSets(obj,notify=true){
- if(!leaveEditor())return 0;
- if(!obj||obj.type!=="QRM3"||!Array.isArray(obj.sets)||!obj.sets.length)throw Error("セット形式が不正です");
- if(data.sets.length+obj.sets.length>500)throw Error("セット数の上限です");
- const stagedQuestions=[],stagedSets=[];
- for(const s of obj.sets){
-  if(!s||typeof s.name!=="string"||s.name.length>1000)throw Error("セット名が不正です");
-  const qs=s.questions||s.items;if(!Array.isArray(qs)||!qs.length||qs.length>10000)throw Error("問題形式が不正です");
-  const next={id:uid(),name:s.name||"読み込みセット",questionIds:[],checkedIds:[],mustIds:[]},items=[];
-  for(const q of qs){const text=q?.q??q?.question,answer=q?.a??q?.answer;if(typeof text!=="string"||typeof answer!=="string"||!text.trim()||!answer.trim()||text.length>20000||answer.length>20000)throw Error("問題・答えが不正です");const nq={id:uid(),q:text,a:answer};items.push(nq);stagedQuestions.push(nq);next.questionIds.push(nq.id);}
-  for(const [field,source]of [["checkedIds","checkedQuestions"],["mustIds","mustQuestions"]]){if(s[source]!==undefined&&!Array.isArray(s[source]))throw Error("チェック形式が不正です");next[field]=items.filter(q=>(s[source]||[]).some(c=>c&&q.q===c.q&&q.a===c.a)).map(q=>String(q.id));}
-  stagedSets.push(next);
- }
- if(data.questions.length+stagedQuestions.length>10000)throw Error("問題数の上限です");
- data.questions.push(...stagedQuestions);data.sets.push(...stagedSets);const added=stagedSets.length;currentSetId=stagedSets.at(-1).id;data.activeSetId=currentSetId;
- if(added){currentQuestion=null;answerShown=false;currentBag=[];currentRound=0;reviewMode=false;lastComment="";saveData();render();}
+ const sets=obj.sets||[];
+ if(!Array.isArray(sets))throw new Error("sets is not an array");
+ let added=0;
+ sets.forEach(s=>{
+  const qs=s.questions||s.items||[];
+  const newSet={id:uid(),name:s.name||"読み込みセット",questionIds:[],questions:[],checkedIds:[],mustIds:[]};
+  qs.forEach(q=>{
+   const nq={id:uid(),q:q.q??q.question??"",a:q.a??q.answer??""};
+   data.questions.push(nq);newSet.questionIds.push(nq.id);newSet.questions.push(nq);
+  });
+  (s.checkedQuestions||[]).forEach(c=>{const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);if(found)newSet.checkedIds.push(String(found.id));});
+  (s.mustQuestions||[]).forEach(c=>{const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);if(found)newSet.mustIds.push(String(found.id));});
+  data.sets.push(newSet);added++;
+  currentSetId=newSet.id;
+  data.activeSetId=newSet.id;
+ });
+ if(added){currentQuestion=null;answerShown=false;currentBag=[];questionHistory=[];historyIndex=-1;currentRound=0;reviewMode=false;lastComment="";saveData();render();}
  if(notify&&added)alert(added+"セット読み込みました！");
  return added;
 }
@@ -898,7 +887,6 @@ function importCode(){
 }
 
 document.getElementById("questionInput").addEventListener("keydown",e=>{
- if(e.isComposing||e.keyCode===229)return;
  if(e.key==="Enter"&&!e.shiftKey){
   e.preventDefault();
   document.getElementById("answerInput").focus();
@@ -906,7 +894,6 @@ document.getElementById("questionInput").addEventListener("keydown",e=>{
 });
 
 document.getElementById("answerInput").addEventListener("keydown",e=>{
- if(e.isComposing||e.keyCode===229)return;
  if(e.key==="Enter"&&!e.shiftKey){
   e.preventDefault();
   addQuestion();
@@ -914,11 +901,14 @@ document.getElementById("answerInput").addEventListener("keydown",e=>{
 });
 
 document.addEventListener("keydown",e=>{
- if(window.QRMTransfer?.busy||e.isComposing||e.keyCode===229||e.repeat)return;
- if(e.target.closest("input,textarea,select,button,a,[contenteditable]"))return;
+ if(e.target.matches("input,textarea"))return;
  if(e.key==="ArrowRight"){
   e.preventDefault();
   nextQuestion();
+ }
+ if(e.key==="ArrowLeft"){
+  e.preventDefault();
+  previousQuestion();
  }
  if(e.key==="Enter"){
   e.preventDefault();
@@ -930,36 +920,8 @@ document.addEventListener("keydown",e=>{
 
 loadData();
 if(data.activeSetId&&getSet(data.activeSetId))currentSetId=data.activeSetId;
-const storedSession=data.studySession;
-if(storedSession&&String(storedSession.currentSetId)===String(currentSetId)){
- const qs=setQuestions(getSet(currentSetId)),ids=new Set(qs.map(q=>String(q.id)));
- currentQuestion=qs.find(q=>String(q.id)===String(storedSession.currentQuestionId))||null;
- currentBag=Array.isArray(storedSession.currentBag)?storedSession.currentBag.map(String).filter(id=>ids.has(id)):[];
- currentRound=Number.isSafeInteger(storedSession.currentRound)?Math.max(0,storedSession.currentRound):0;
- answerShown=!!storedSession.answerShown;reviewMode=!!storedSession.reviewMode;lastComment=typeof storedSession.lastComment==="string"?storedSession.lastComment:"";
-}
 render();
-initializing=false;
 importShareFromUrl();
-window.QRMTransfer?.attach({
- editing:()=>isEditing,
- snapshot:()=>{
-  const questionMap=new Map();const sets=data.sets.map(s=>{const qs=setQuestions(s).map(getQ);qs.forEach(q=>questionMap.set(String(q.id),q));return {id:s.id,name:s.name||"名前なし",questionIds:qs.map(q=>q.id),checkedIds:s.checkedIds||[],mustIds:s.mustIds||[]};});
-  return {version:1,data:{questions:[...questionMap.values()],sets,activeSetId:currentSetId},session:{currentSetId,currentQuestionId:currentQuestion?.id||null,currentBag:[...currentBag],currentRound,answerShown,reviewMode,lastComment}};
- },
- restore:snapshot=>{
-  // Write the backup and replacement before changing in-memory state.
-  const old=JSON.stringify(data);localStorage.setItem("question_random_mechanism_before_cloud_restore",old);
-  snapshot.data.studySession=snapshot.session;
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(snapshot.data));storageBlocked=false;lastSaved=JSON.stringify(snapshot.data);
-  data=snapshot.data;currentSetId=snapshot.session.currentSetId;currentQuestion=data.questions.find(q=>String(q.id)===snapshot.session.currentQuestionId)||null;
-  currentBag=snapshot.session.currentBag;currentRound=snapshot.session.currentRound;answerShown=snapshot.session.answerShown;reviewMode=snapshot.session.reviewMode;lastComment=snapshot.session.lastComment;
-  isEditing=false;editingId=null;draft=[];document.getElementById("editor").classList.add("hidden");hideManage();hideChecked();render();
- }
-});
 </script>
 </body>
 </html>
-
-
-
