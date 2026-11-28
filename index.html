@@ -72,12 +72,12 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 <section class="panel" id="quiz">
 <div id="progress">0 / 0</div>
 <div id="round">周回 0</div>
-<div id="question">セットを選んでください</div>
+<div id="question">📚セットを選んでください</div>
 <div id="answer"></div>
 <div id="comment"></div>
 
 <div class="quizbuttons">
-<button id="nextBtn" onclick="nextQuestion()">始める</button>
+<button id="nextBtn" onclick="nextQuestion()">▶️始める</button>
 <button id="modeBtn" class="secondary" onclick="toggleQuestionMode()">出題順：ランダム</button>
 <button id="prevBtn" class="secondary" onclick="previousQuestion()" disabled>← 前の問題</button>
 <button id="answerBtn" class="secondary" onclick="toggleAnswer()">答えを見る</button>
@@ -807,12 +807,13 @@ function renameSet(id){
 function deleteSet(id){
  const pw=prompt("削除パスワードを入力してください");
  if(pw!=="Hibiki"){
-  if(pw!==null)alert("パスワードが違います");
+  if(pw!==null)alert("パスワードが違うどん！");
   return;
  }
  const s=getSet(id);
  if(!s)return;
- if(!confirm("「"+s.name+"」を削除しますか？"))return;
+ if(!confirm("「"+s.name+"」を削除していい？"))return;
+ 
 
  data.sets=data.sets.filter(x=>String(x.id)!==String(id));
  if(String(currentSetId)===String(id)){
