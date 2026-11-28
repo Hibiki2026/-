@@ -72,12 +72,12 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
 <section class="panel" id="quiz">
 <div id="progress">0 / 0</div>
 <div id="round">周回 0</div>
-<div id="question">📚セットを選んでください</div>
+<div id="question">セットを選んでください</div>
 <div id="answer"></div>
 <div id="comment"></div>
 
 <div class="quizbuttons">
-<button id="nextBtn" onclick="nextQuestion()">▶️始める</button>
+<button id="nextBtn" onclick="nextQuestion()">始める</button>
 <button id="modeBtn" class="secondary" onclick="toggleQuestionMode()">出題順：ランダム</button>
 <button id="prevBtn" class="secondary" onclick="previousQuestion()" disabled>← 前の問題</button>
 <button id="answerBtn" class="secondary" onclick="toggleAnswer()">答えを見る</button>
@@ -97,6 +97,21 @@ hr{border:0;border-top:1px solid #e5e8f5;margin:18px 0}
  </div>
 </div>
 <p class="muted">指定した番号から順番に出題します。最後まで進むと、次の周回は1問目から始まります。</p>
+
+<div class="row" style="margin-top:14px;max-width:620px;margin-left:auto;margin-right:auto;align-items:end">
+ <div>
+  <label for="rangeStartNumber" class="muted">ランダム範囲：最初の番号</label>
+  <input id="rangeStartNumber" type="number" min="1" step="1" value="1" placeholder="例：10">
+ </div>
+ <div>
+  <label for="rangeEndNumber" class="muted">最後の番号</label>
+  <input id="rangeEndNumber" type="number" min="1" step="1" value="10" placeholder="例：30">
+ </div>
+ <div>
+  <button class="secondary" onclick="startRandomRange()" style="width:100%">この範囲をランダム出題</button>
+ </div>
+</div>
+<p class="muted">指定した番号の範囲内だけをランダムに出題します。範囲内を一通り出題すると、同じ範囲で次の周回が始まります。</p>
 <p class="muted">Enter：開始・答え表示・次の問題 ／ →：次の問題 ／ ←：前の問題</p>
 </section>
 
@@ -188,6 +203,7 @@ let questionHistory=[];
 let historyIndex=-1;
 let currentRound=0;
 let orderedStartOffset=0;
+let activeRange=null;
 let reviewMode=false;
 let lastComment="";
 
@@ -295,6 +311,7 @@ function selectSet(id){
  historyIndex=-1;
  currentRound=0;
  orderedStartOffset=0;
+ activeRange=null;
  reviewMode=false;
  lastComment="";
  saveData();
@@ -307,11 +324,12 @@ function renderQuiz(){
  const s=getSet(currentSetId);
  const qs=setQuestions(s);
  const total=qs.length;
+ const displayTotal=activeRange?activeRange.end-activeRange.start+1:total;
  const progress=currentQuestion&&total?(questionMode==="ordered"?orderedStartOffset+historyIndex+1:questionHistory.length):0;
 
  document.getElementById("progress").textContent=reviewMode
   ?"チェック問題"
-  :`${progress} / ${total}`;
+  :`${progress} / ${displayTotal}`;
  document.getElementById("round").textContent=`周回 ${currentRound}`;
  document.getElementById("question").textContent=currentQuestion
   ?currentQuestion.q
@@ -411,7 +429,16 @@ function shuffle(arr){
 
 function toggleQuestionMode(){
  questionMode=questionMode==="random"?"ordered":"random";
- currentQuestion=null;answerShown=false;currentBag=[];questionHistory=[];historyIndex=-1;currentRound=0;orderedStartOffset=0;reviewMode=false;lastComment="";
+ currentQuestion=null;
+ answerShown=false;
+ currentBag=[];
+ questionHistory=[];
+ historyIndex=-1;
+ currentRound=0;
+ orderedStartOffset=0;
+ activeRange=null;
+ reviewMode=false;
+ lastComment="";
  renderQuiz();
 }
 
@@ -419,7 +446,10 @@ function showHistoryQuestion(index){
  const s=getSet(currentSetId);if(!s)return;
  const qs=setQuestions(s);const id=questionHistory[index];
  currentQuestion=qs.find(q=>String(q.id)===String(id))||null;
- historyIndex=index;answerShown=false;reviewMode=false;renderQuiz();
+ historyIndex=index;
+ answerShown=false;
+ reviewMode=false;
+ renderQuiz();
 }
 
 function previousQuestion(){
@@ -441,6 +471,7 @@ function startFromQuestionNumber(){
   return;
  }
  questionMode="ordered";
+ activeRange=null;
  currentQuestion=null;
  answerShown=false;
  currentBag=qs.slice(number-1).map(q=>String(q.id));
@@ -453,23 +484,57 @@ function startFromQuestionNumber(){
  nextQuestion();
 }
 
+function startRandomRange(){
+ if(isEditing)return;
+ const s=getSet(currentSetId);
+ if(!s){alert("先に保存済みセットを選んでください");return;}
+ const qs=setQuestions(s);
+ if(!qs.length){alert("このセットには問題がありません");return;}
+ const start=Number(document.getElementById("rangeStartNumber").value);
+ const end=Number(document.getElementById("rangeEndNumber").value);
+ if(!Number.isInteger(start)||!Number.isInteger(end)||start<1||end<1||start>qs.length||end>qs.length||start>end){
+  alert(`1〜${qs.length}の範囲で、最初の番号が最後の番号以下になるように入力してください`);
+  return;
+ }
+ questionMode="random";
+ activeRange={start:start-1,end:end-1};
+ currentQuestion=null;
+ answerShown=false;
+ currentBag=shuffle(qs.slice(activeRange.start,activeRange.end+1).map(q=>String(q.id)));
+ questionHistory=[];
+ historyIndex=-1;
+ currentRound=1;
+ orderedStartOffset=0;
+ reviewMode=false;
+ lastComment=getRoundComment(1);
+ nextQuestion();
+}
+
 function nextQuestion(){
  if(isEditing)return;
  const s=getSet(currentSetId);
- if(!s){alert("先に保存済みセットを選んでください");return}
+ if(!s){alert("先に保存済みセットを選んでください");return;}
  const qs=setQuestions(s);
- if(!qs.length){alert("このセットには問題がありません");return}
+ if(!qs.length){alert("このセットには問題がありません");return;}
  reviewMode=false;
+
  // 一度戻ったあとなら、既に表示した履歴を先へ進む
- if(historyIndex<questionHistory.length-1){showHistoryQuestion(historyIndex+1);return;}
+ if(historyIndex<questionHistory.length-1){
+  showHistoryQuestion(historyIndex+1);
+  return;
+ }
+
  if(!currentBag.length){
   orderedStartOffset=0;
-  currentBag=qs.map(q=>String(q.id));
+  const pool=activeRange?qs.slice(activeRange.start,activeRange.end+1):qs;
+  currentBag=pool.map(q=>String(q.id));
   if(questionMode==="random")shuffle(currentBag);
   currentRound++;
   lastComment=getRoundComment(currentRound);
-  questionHistory=[];historyIndex=-1;
+  questionHistory=[];
+  historyIndex=-1;
  }
+
  let id;
  if(questionMode==="ordered"){
   id=currentBag.shift();
@@ -478,6 +543,7 @@ function nextQuestion(){
   const mustIndex=currentBag.findIndex(x=>mustIds.includes(String(x)));
   id=mustIndex!==-1?currentBag.splice(mustIndex,1)[0]:currentBag.pop();
  }
+
  questionHistory.push(String(id));
  historyIndex=questionHistory.length-1;
  currentQuestion=qs.find(q=>String(q.id)===String(id))||qs[0];
@@ -523,7 +589,7 @@ function toggleMust(){
 
 function showChecked(){
  const s=getSet(currentSetId);
- if(!s){alert("先にセットを選んでください");return}
+ if(!s){alert("先にセットを選んでください");return;}
  const checkedIds=Array.isArray(s.checkedIds)?s.checkedIds:[];
  const qs=setQuestions(s).filter(q=>checkedIds.includes(String(q.id)));
  const el=document.getElementById("checkedList");
@@ -569,6 +635,7 @@ function resetSet(){
  historyIndex=-1;
  currentRound=0;
  orderedStartOffset=0;
+ activeRange=null;
  reviewMode=false;
  lastComment="";
  renderQuiz();
@@ -671,7 +738,7 @@ function renderDraft(){
 function addQuestion(){
  const q=document.getElementById("questionInput").value.trim();
  const a=document.getElementById("answerInput").value.trim();
- if(!q||!a){alert("問題と答えの両方を入力してください");return}
+ if(!q||!a){alert("問題と答えの両方を入力してください");return;}
  draft.push({id:uid(),q,a});
  document.getElementById("questionInput").value="";
  document.getElementById("answerInput").value="";
@@ -681,8 +748,8 @@ function addQuestion(){
 
 function saveSet(){
  const name=document.getElementById("setName").value.trim();
- if(!name){alert("セット名を入力してください");return}
- if(!draft.length){alert("問題を1つ以上追加してください");return}
+ if(!name){alert("セット名を入力してください");return;}
+ if(!draft.length){alert("問題を1つ以上追加してください");return;}
 
  const wasUpdating=!!editingId;
  let s;
@@ -727,6 +794,7 @@ function saveSet(){
  historyIndex=-1;
  currentRound=0;
  orderedStartOffset=0;
+ activeRange=null;
  reviewMode=false;
  lastComment="";
 
@@ -807,13 +875,12 @@ function renameSet(id){
 function deleteSet(id){
  const pw=prompt("削除パスワードを入力してください");
  if(pw!=="Hibiki"){
-  if(pw!==null)alert("パスワードが違うどん！");
+  if(pw!==null)alert("パスワードが違います");
   return;
  }
  const s=getSet(id);
  if(!s)return;
- if(!confirm("「"+s.name+"」を削除していい？"))return;
- 
+ if(!confirm("「"+s.name+"」を削除しますか？"))return;
 
  data.sets=data.sets.filter(x=>String(x.id)!==String(id));
  if(String(currentSetId)===String(id)){
@@ -840,14 +907,22 @@ function renderShareSets(){
  const el=document.getElementById("shareSetList");
  if(!el)return;
  el.innerHTML="";
- if(!data.sets.length){el.innerHTML='<p class="muted">共有できるセットがまだありません。</p>';return;}
+ if(!data.sets.length){
+  el.innerHTML='<p class="muted">共有できるセットがまだありません。</p>';
+  return;
+ }
  data.sets.forEach(s=>{
   const label=document.createElement("label");
   label.style.cssText="display:flex;align-items:center;gap:10px;background:#f3f4ff;padding:10px;border-radius:10px;margin:7px 0;cursor:pointer";
   const cb=document.createElement("input");
-  cb.type="checkbox";cb.className="shareSetCheck";cb.value=String(s.id);cb.style.cssText="width:22px;height:22px;flex:0 0 auto";
-  const txt=document.createElement("span");txt.textContent=(s.name||"名前なし")+"（"+setQuestions(s).length+"問）";
-  label.append(cb,txt);el.append(label);
+  cb.type="checkbox";
+  cb.className="shareSetCheck";
+  cb.value=String(s.id);
+  cb.style.cssText="width:22px;height:22px;flex:0 0 auto";
+  const txt=document.createElement("span");
+  txt.textContent=(s.name||"名前なし")+"（"+setQuestions(s).length+"問）";
+  label.append(cb,txt);
+  el.append(label);
  });
 }
 
@@ -867,29 +942,67 @@ function createShareLink(){
 
 async function copyShareLink(){
  const el=document.getElementById("shareLink");
- if(!el.value){createShareLink();if(!el.value)return;}
- try{await navigator.clipboard.writeText(el.value);alert("共有リンクをコピーしました！");}
- catch(e){el.focus();el.select();document.execCommand("copy");alert("コピーしました（コピーできない場合は選択してコピーしてください）");}
+ if(!el.value){
+  createShareLink();
+  if(!el.value)return;
+ }
+ try{
+  await navigator.clipboard.writeText(el.value);
+  alert("共有リンクをコピーしました！");
+ }catch(e){
+  el.focus();
+  el.select();
+  document.execCommand("copy");
+  alert("コピーしました（コピーできない場合は選択してコピーしてください）");
+ }
 }
 
 function importPayloadSets(obj,notify=true){
  const sets=obj.sets||[];
  if(!Array.isArray(sets))throw new Error("sets is not an array");
  let added=0;
+
  sets.forEach(s=>{
   const qs=s.questions||s.items||[];
   const newSet={id:uid(),name:s.name||"読み込みセット",questionIds:[],questions:[],checkedIds:[],mustIds:[]};
+
   qs.forEach(q=>{
    const nq={id:uid(),q:q.q??q.question??"",a:q.a??q.answer??""};
-   data.questions.push(nq);newSet.questionIds.push(nq.id);newSet.questions.push(nq);
+   data.questions.push(nq);
+   newSet.questionIds.push(nq.id);
+   newSet.questions.push(nq);
   });
-  (s.checkedQuestions||[]).forEach(c=>{const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);if(found)newSet.checkedIds.push(String(found.id));});
-  (s.mustQuestions||[]).forEach(c=>{const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);if(found)newSet.mustIds.push(String(found.id));});
-  data.sets.push(newSet);added++;
+
+  (s.checkedQuestions||[]).forEach(c=>{
+   const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);
+   if(found)newSet.checkedIds.push(String(found.id));
+  });
+
+  (s.mustQuestions||[]).forEach(c=>{
+   const found=newSet.questions.find(q=>q.q===c.q&&q.a===c.a);
+   if(found)newSet.mustIds.push(String(found.id));
+  });
+
+  data.sets.push(newSet);
+  added++;
   currentSetId=newSet.id;
   data.activeSetId=newSet.id;
  });
- if(added){currentQuestion=null;answerShown=false;currentBag=[];questionHistory=[];historyIndex=-1;currentRound=0;reviewMode=false;lastComment="";saveData();render();}
+
+ if(added){
+  currentQuestion=null;
+  answerShown=false;
+  currentBag=[];
+  questionHistory=[];
+  historyIndex=-1;
+  currentRound=0;
+  activeRange=null;
+  reviewMode=false;
+  lastComment="";
+  saveData();
+  render();
+ }
+
  if(notify&&added)alert(added+"セット読み込みました！");
  return added;
 }
@@ -897,13 +1010,16 @@ function importPayloadSets(obj,notify=true){
 function importShareFromUrl(){
  const hash=location.hash;
  if(!hash.startsWith("#QRM3SHARE="))return;
+
  try{
   const encoded=hash.slice("#QRM3SHARE=".length);
   const obj=JSON.parse(decodeURIComponent(escape(atob(encoded))));
   if(obj.type!=="QRM3"||!Array.isArray(obj.sets))throw new Error();
   importPayloadSets(obj,false);
   history.replaceState(null,"",location.pathname+location.search);
- }catch(e){alert("共有リンクが正しくないか、内容を読み込めませんでした。");}
+ }catch(e){
+  alert("共有リンクが正しくないか、内容を読み込めませんでした。");
+ }
 }
 
 function exportCode(){
@@ -929,12 +1045,15 @@ function copyCode(){
 
 function importCode(){
  const code=document.getElementById("transfer").value.trim();
- if(!code){alert("引き継ぎコードを入力してください");return}
+ if(!code){alert("引き継ぎコードを入力してください");return;}
+
  try{
   const raw=code.startsWith("QRM3-")?code.slice(5):code;
   const obj=JSON.parse(decodeURIComponent(escape(atob(raw))));
   importPayloadSets(obj,true);
- }catch(e){alert("コードが正しくありません");}
+ }catch(e){
+  alert("コードが正しくありません");
+ }
 }
 
 document.getElementById("questionInput").addEventListener("keydown",e=>{
@@ -953,14 +1072,17 @@ document.getElementById("answerInput").addEventListener("keydown",e=>{
 
 document.addEventListener("keydown",e=>{
  if(e.target.matches("input,textarea"))return;
+
  if(e.key==="ArrowRight"){
   e.preventDefault();
   nextQuestion();
  }
+
  if(e.key==="ArrowLeft"){
   e.preventDefault();
   previousQuestion();
  }
+
  if(e.key==="Enter"){
   e.preventDefault();
   if(!currentQuestion)nextQuestion();
